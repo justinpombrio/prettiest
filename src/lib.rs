@@ -1,6 +1,9 @@
+mod line_lens;
 mod node;
 mod printer;
-mod line_lens;
+#[macro_use]
+mod util;
+mod space;
 
 // TODO: temporary
 pub use node::*;

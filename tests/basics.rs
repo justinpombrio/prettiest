@@ -14,8 +14,20 @@ fn test_spaces() {
 }
 
 #[test]
+fn test_concat() {
+    let doc = text("Hello, ") + text("world");
+    assert_pretty_empty(&doc, 11);
+    assert_pretty(&doc, 12, vec!["Hello, world"]);
+    assert_pretty(&doc, 14, vec!["Hello, world"]);
+
+    let doc = text("Hello,") + spaces(3) + text("world");
+    assert_pretty_empty(&doc, 13);
+    assert_pretty(&doc, 14, vec!["Hello,   world"]);
+    assert_pretty(&doc, 15, vec!["Hello,   world"]);
+}
+
+#[test]
 fn test_newline() {
-    /*
     let doc = nl();
     assert_pretty(&doc, 0, vec!["", ""]);
 
@@ -27,7 +39,6 @@ fn test_newline() {
 
     let doc = text("hi") ^ text("there");
     assert_pretty(&doc, 5, vec!["hi", "there"]);
-    */
 
     let doc = (text("hi") ^ text("the")) + (text("re") ^ text("Jill"));
     assert_pretty_empty(&doc, 4);
@@ -35,11 +46,9 @@ fn test_newline() {
 }
 
 #[test]
-fn test_concat() {
-    let doc = text("Hello, ") + text("world");
-    assert_pretty_empty(&doc, 11);
-    assert_pretty(&doc, 12, vec!["Hello, world"]);
-    assert_pretty(&doc, 14, vec!["Hello, world"]);
+fn test_flat() {
+    let doc = flat(nl());
+    assert_pretty_empty(&doc, 10);
 }
 
 ////////////////////////////////////////

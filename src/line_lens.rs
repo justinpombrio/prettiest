@@ -1,4 +1,6 @@
 use crate::node::{Width, MAX_WIDTH};
+use std::fmt;
+use std::mem;
 
 #[derive(Debug, Clone)]
 pub struct LastLineLens {
@@ -10,6 +12,12 @@ pub struct LastLineLens {
     /// The lenghts of the last lines of all possible multi-line non-aligned layouts. (Contains at
     /// least one newline, and the last line is not aligned with the first line.)
     pub multi: Vec<Width>,
+}
+
+impl fmt::Display for LastLineLens {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "SAM:{:?}{:?}{:?}", self.single, self.aligned, self.multi)
+    }
 }
 
 impl LastLineLens {
@@ -35,6 +43,7 @@ impl LastLineLens {
             .into_iter()
             .chain(self.multi.into_iter())
             .collect();
+        normalize(&mut self.aligned);
         self.multi = vec![];
         self
     }
@@ -47,21 +56,28 @@ impl LastLineLens {
 
     pub fn union(self, other: LastLineLens) -> LastLineLens {
         // TODO: do an efficient merge-sort style merge, since these lists are ordered
-        let single = self
+
+        let mut single = self
             .single
             .into_iter()
             .chain(other.single.into_iter())
             .collect();
-        let aligned = self
+        normalize(&mut single);
+
+        let mut aligned = self
             .aligned
             .into_iter()
             .chain(other.aligned.into_iter())
             .collect();
-        let multi = self
+        normalize(&mut aligned);
+
+        let mut multi = self
             .multi
             .into_iter()
             .chain(other.multi.into_iter())
             .collect();
+        normalize(&mut multi);
+
         LastLineLens {
             single,
             aligned,
@@ -107,9 +123,9 @@ impl LastLineLens {
                 multi.push(*n);
             }
         }
-        single = normalize(single);
-        aligned = normalize(aligned);
-        multi = normalize(multi);
+        normalize(&mut single);
+        normalize(&mut aligned);
+        normalize(&mut multi);
 
         LastLineLens {
             single,
@@ -117,22 +133,14 @@ impl LastLineLens {
             multi,
         }
     }
-
-    pub fn iter_all(&self) -> impl Iterator<Item = Width> + '_ {
-        let single = self.single.iter();
-        let aligned = self.aligned.iter();
-        let multi = self.multi.iter();
-
-        single.chain(aligned).chain(multi).map(|n| *n)
-    }
 }
 
 /// Normalize a list of widths: sort it, and filter out unreasonably large values.
-fn normalize(mut list: Vec<Width>) -> Vec<Width> {
-    list = list
+fn normalize(list: &mut Vec<Width>) {
+    // TODO: sorting?
+    let normalized_list = mem::take(list)
         .into_iter()
         .filter(|n| *n <= MAX_WIDTH)
         .collect::<Vec<_>>();
-    list.sort();
-    list
+    *list = normalized_list;
 }
