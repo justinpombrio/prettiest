@@ -1,3 +1,4 @@
+use crate::log;
 use crate::node::{Height, Width};
 use std::fmt;
 
@@ -31,6 +32,12 @@ pub struct Badness {
     overflow: Count,
 }
 
+// INVARIANTS:
+// - Shapes are in sorted order: sorted by increasing `last`.
+// - If multiple shapes have the same `last`, then only the least bad one is kept.
+//
+// These invariants may be temporarily ignored while callign `insert`, but must be restored with a
+// call to `normalize()` before the ShapeSet is used again.
 #[derive(Debug, Clone)]
 pub struct ShapeSet(Vec<Shape>);
 
@@ -157,7 +164,8 @@ impl Shape {
     }
 
     pub fn align(mut self) -> Shape {
-        self.first = self.middle;
+        // TODO: What if last > middle?
+        self.middle = self.first;
         self.aligned = true;
         self
     }
@@ -187,21 +195,16 @@ impl Shape {
         }
     }
 
-    /*
-    pub fn into_space(self) -> Space {
-        if self.height == 0 {
-            Space::Flat(self.first)
-        } else {
-            Space::NotFlat {
-                first: self.first,
-                middle: self.middle,
-            }
-        }
-    }
-    */
-
     pub fn badness(self) -> Badness {
         self.badness
+    }
+
+    pub fn aligned(self) -> bool {
+        self.aligned
+    }
+
+    fn is_better(self, other: Shape) -> bool {
+        self.last <= other.last && (self.badness, self.height) <= (other.badness, other.height)
     }
 }
 
@@ -218,25 +221,48 @@ impl ShapeSet {
         let mut shapes = self.0;
         shapes.append(&mut other.0);
         let mut shape_set = ShapeSet(shapes);
+        // TODO: merge efficiently
         shape_set.normalize();
         shape_set
     }
 
-    // TODO
-    pub fn normalize(&mut self) {}
+    pub fn normalize(&mut self) {
+        //  TODO: do this more efficiently, and in place.
+        self.0.sort_by_key(|shape| shape.last);
+
+        // Keep only the best shape for each value of `last`, and eliminate dominated shapes.
+        let mut normalized = vec![];
+        for i in 0..self.0.len() {
+            let shape = self.0[i];
+            let mut dominated = false;
+            for j in 0..self.0.len() {
+                let other_shape = self.0[j];
+                if i != j && other_shape.is_better(shape) {
+                    dominated = true;
+                }
+            }
+            if !dominated {
+                normalized.push(shape);
+            }
+        }
+
+        log!("normalize: {} -> {}", self, ShapeSet(normalized.clone()));
+
+        self.0 = normalized;
+    }
 
     pub fn contains(&self, shape: Shape) -> bool {
         self.0.contains(&shape)
     }
 
+    /// Must call normalize() after making insertions
     pub fn insert(&mut self, shape: Shape) {
         // TODO: efficiency?
         self.0.push(shape);
     }
 
-    pub fn best(mut self) -> Shape {
-        self.0.sort_by_key(|shape| shape.badness);
-        *self.0.first().unwrap()
+    pub fn best(self) -> Shape {
+        *self.0.last().unwrap()
     }
 
     pub fn flatten(mut self) -> ShapeSet {
@@ -280,7 +306,7 @@ impl fmt::Display for Space {
 
         match self {
             Flat(len) => write!(f, "{}/0", len),
-            NotFlat { first, middle } => write!(f, "{}:{}:_", first, middle),
+            NotFlat { first, middle } => write!(f, "{}:{}:{}", first, middle, middle),
         }
     }
 }

@@ -57,10 +57,103 @@ fn test_flat() {
 
     let doc = flat(nl()) | text("good") | text("overflow");
     assert_pretty(&doc, 5, vec!["good"]);
+
     let doc = flat(nl()) | text("overflow") | text("good");
     assert_pretty(&doc, 5, vec!["good"]);
+
     let doc = text("good") | text("overflow") | flat(nl());
     assert_pretty(&doc, 5, vec!["good"]);
+}
+
+#[test]
+fn test_align() {
+    let doc = text("a") + align(text("b") ^ text("b"));
+    assert_pretty(&doc, 2, vec!["ab", " b"]);
+
+    let doc = text("a") + align(text("b") ^ text("b")) + align(text("c") ^ text("c"));
+    assert_pretty(&doc, 3, vec!["ab", " bc", "  c"]);
+
+    let doc = text("a") + align(text("b") ^ text("b") ^ text("b")) + (text("c") ^ text("c"));
+    assert_pretty(&doc, 3, vec!["ab", " b", " bc", "c"]);
+}
+
+pub fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Node {
+    let mut iter = words.into_iter();
+    let first_word = iter.next().unwrap();
+
+    let mut flow = text(first_word);
+    for word in iter {
+        flow = flow + (text(" ") | nl()) + text(word);
+    }
+    flow
+}
+
+#[test]
+fn test_big_flow() {
+    println!("Start big flow test");
+
+    println!("constructing paragraph...");
+    let sentence = "The quick brown fox jumps over the lazy dog. ";
+    let mut paragraph = "".to_owned();
+    for _ in 0..1000 {
+        paragraph.push_str(sentence);
+    }
+    paragraph.pop(); // remove final space
+
+    println!("constructing doc...");
+    let doc = word_flow(paragraph.split(' '));
+
+    println!("formatting");
+    let result = pretty(&doc, 88);
+
+    for line in result.lines {
+        println!("{}", line);
+    }
+}
+
+#[test]
+fn test_flow() {
+    let doc = word_flow("The quick brown fox jumps over the lazy dog".split(' '));
+    /*
+    assert_pretty(
+        &doc,
+        80,
+        vec!["The quick brown fox jumps over the lazy dog"],
+    );
+    assert_pretty(
+        &doc,
+        20,
+        vec!["The quick brown fox", "jumps over the lazy", "dog"],
+    );
+    */
+    assert_pretty(
+        &doc,
+        15,
+        vec!["The quick brown", "fox jumps over", "the lazy dog"],
+    );
+    assert!(false);
+    /*
+    assert_pretty(
+        &doc,
+        10,
+        vec!["The quick", "brown fox", "jumps over", "the lazy", "dog"],
+    );
+    assert_pretty(
+        &doc,
+        8,
+        vec![
+            "The", "quick", "brown", "fox", "jumps", "over the", "lazy dog",
+        ],
+    );
+    assert_ugly(
+        &doc,
+        4,
+        vec![
+            "The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog",
+        ],
+        Badness::overflow(4),
+    );
+    */
 }
 
 ////////////////////////////////////////

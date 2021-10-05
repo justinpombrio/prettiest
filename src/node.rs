@@ -24,6 +24,28 @@ pub enum Notation {
     Choice(Node, Node),
 }
 
+impl fmt::Display for Notation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Notation::*;
+
+        match self {
+            Text(t) => write!(f, "\"{}\"", t),
+            Spaces(w) => write!(f, "Spaces({})", w),
+            Newline => write!(f, "NL"),
+            Flat(n) => write!(f, "Flat({})", n),
+            Align(n) => write!(f, "Align({})", n),
+            Concat(x, y) => write!(f, "{} + {}", x, y),
+            Choice(x, y) => write!(f, "{} | {}", x, y),
+        }
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.notation)
+    }
+}
+
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.notation)
