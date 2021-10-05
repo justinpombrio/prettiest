@@ -1,27 +1,29 @@
-use prettiest::{align, flat, nl, pretty, spaces, text, Node, Width};
+use prettiest::{align, flat, nl, pretty, spaces, text, Badness, Node, Width};
 
 #[test]
 fn test_text() {
-    assert_pretty_empty(&text("Hello, world"), 10);
-    assert_pretty(&text("Hello, world"), 12, vec!["Hello, world"]);
-    assert_pretty(&text("Hello, world"), 20, vec!["Hello, world"]);
+    let doc = text("Hello, world");
+    assert_ugly(&doc, 10, vec!["Hello, world"], Badness::overflow(2));
+    assert_pretty(&doc, 12, vec!["Hello, world"]);
+    assert_pretty(&doc, 20, vec!["Hello, world"]);
 }
 
 #[test]
 fn test_spaces() {
-    assert_pretty_empty(&spaces(3), 2);
-    assert_pretty(&spaces(3), 3, vec!["   "]);
+    let doc = spaces(3);
+    assert_ugly(&doc, 2, vec!["   "], Badness::overflow(1));
+    assert_pretty(&doc, 3, vec!["   "]);
 }
 
 #[test]
 fn test_concat() {
     let doc = text("Hello, ") + text("world");
-    assert_pretty_empty(&doc, 11);
+    assert_ugly(&doc, 11, vec!["Hello, world"], Badness::overflow(1));
     assert_pretty(&doc, 12, vec!["Hello, world"]);
     assert_pretty(&doc, 14, vec!["Hello, world"]);
 
     let doc = text("Hello,") + spaces(3) + text("world");
-    assert_pretty_empty(&doc, 13);
+    assert_ugly(&doc, 13, vec!["Hello,   world"], Badness::overflow(1));
     assert_pretty(&doc, 14, vec!["Hello,   world"]);
     assert_pretty(&doc, 15, vec!["Hello,   world"]);
 }
@@ -41,40 +43,52 @@ fn test_newline() {
     assert_pretty(&doc, 5, vec!["hi", "there"]);
 
     let doc = (text("hi") ^ text("the")) + (text("re") ^ text("Jill"));
-    assert_pretty_empty(&doc, 4);
+    assert_ugly(&doc, 4, vec!["hi", "there", "Jill"], Badness::overflow(1));
     assert_pretty(&doc, 80, vec!["hi", "there", "Jill"]);
 }
 
 #[test]
 fn test_flat() {
     let doc = flat(nl());
-    assert_pretty_empty(&doc, 10);
+    assert_ugly(&doc, 10, vec!["", ""], Badness::violations(1));
+
+    let doc = flat(nl()) | text("overflow");
+    assert_ugly(&doc, 5, vec!["overflow"], Badness::overflow(3));
+
+    let doc = flat(nl()) | text("good") | text("overflow");
+    assert_pretty(&doc, 5, vec!["good"]);
+    let doc = flat(nl()) | text("overflow") | text("good");
+    assert_pretty(&doc, 5, vec!["good"]);
+    let doc = text("good") | text("overflow") | flat(nl());
+    assert_pretty(&doc, 5, vec!["good"]);
 }
 
 ////////////////////////////////////////
 
 #[track_caller]
-fn assert_pretty_empty(doc: &Node, width: Width) {
-    assert_pretty_inner(doc, width, None);
-}
-
-#[track_caller]
 fn assert_pretty(doc: &Node, width: Width, expected_lines: Vec<&str>) {
-    assert_pretty_inner(doc, width, Some(expected_lines));
+    let result = pretty(doc, width);
+
+    let msg = &format!("IN PRETTY PRINTING WITH WIDTH {}", width);
+    let expected = expected_lines.join("\n");
+    let actual = result.lines.join("\n");
+    compare_lines(msg, expected, actual, None);
+
+    let badness = result.badness;
+    assert_eq!(badness, Badness::good());
 }
 
 #[track_caller]
-fn assert_pretty_inner(doc: &Node, width: Width, expected_lines: Option<Vec<&str>>) {
+fn assert_ugly(doc: &Node, width: Width, expected_lines: Vec<&str>, expected_badness: Badness) {
+    let result = pretty(doc, width);
+
     let msg = &format!("IN PRETTY PRINTING WITH WIDTH {}", width);
-    let expected = match expected_lines {
-        Some(expected_lines) => expected_lines.join("\n"),
-        None => "(none)".to_string(),
-    };
-    let actual = match pretty(doc, width) {
-        Some(actual_lines) => actual_lines.join("\n"),
-        None => "(none)".to_string(),
-    };
+    let expected = expected_lines.join("\n");
+    let actual = result.lines.join("\n");
     compare_lines(msg, expected, actual, None);
+
+    let actual_badness = result.badness;
+    assert_eq!(actual_badness, expected_badness);
 }
 
 #[track_caller]

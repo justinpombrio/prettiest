@@ -5,8 +5,8 @@ use std::ops::{Add, BitOr, BitXor, Shr};
 pub type Id = usize;
 
 /// Number of newlines. A single line has height 0.
-pub type Height = u32;
-pub type Width = u16;
+pub type Height = i32;
+pub type Width = i16;
 
 pub struct Node {
     pub id: Id,
@@ -23,8 +23,6 @@ pub enum Notation {
     Concat(Node, Node),
     Choice(Node, Node),
 }
-
-pub const MAX_WIDTH: Width = 256;
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -4,8 +4,10 @@ mod logging {
 
     const TAB_SIZE: usize = 2;
 
-    #[doc(hidden)]
-    pub static LOGGING_DEPTH: AtomicUsize = AtomicUsize::new(0);
+    thread_local! {
+        #[doc(hidden)]
+        pub static LOGGING_DEPTH: AtomicUsize = AtomicUsize::new(0);
+    }
 
     #[doc(hidden)]
     pub struct LoggingGuard;
@@ -13,21 +15,29 @@ mod logging {
     impl LoggingGuard {
         #[doc(hidden)]
         pub fn new() -> LoggingGuard {
-            LOGGING_DEPTH.fetch_add(TAB_SIZE, Ordering::SeqCst);
+            LOGGING_DEPTH.with(|atom| atom.fetch_add(TAB_SIZE, Ordering::SeqCst));
             LoggingGuard
         }
     }
 
     impl Drop for LoggingGuard {
         fn drop(&mut self) {
-            LOGGING_DEPTH.fetch_sub(TAB_SIZE, Ordering::SeqCst);
+            LOGGING_DEPTH.with(|atom| atom.fetch_sub(TAB_SIZE, Ordering::SeqCst));
         }
     }
 
     #[macro_export]
     macro_rules! log {
+        ($msg:literal) => {
+            let depth = $crate::util::LOGGING_DEPTH.with(|atom| {
+                atom.load(std::sync::atomic::Ordering::SeqCst)
+            });
+            eprintln!(concat!("{:indent$}", $msg), "", indent = depth);
+        };
         ($msg:literal, $($args:expr),*) => {
-            let depth = $crate::util::LOGGING_DEPTH.load(std::sync::atomic::Ordering::SeqCst);
+            let depth = $crate::util::LOGGING_DEPTH.with(|atom| {
+                atom.load(std::sync::atomic::Ordering::SeqCst)
+            });
             eprintln!(concat!("{:indent$}", $msg), "", $($args),*, indent = depth);
         };
     }
@@ -44,6 +54,7 @@ mod logging {
 mod logging {
     #[macro_export]
     macro_rules! log {
+        ($msg:literal) => {};
         ($msg:literal, $($args:expr),*) => {};
     }
 
