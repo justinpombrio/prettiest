@@ -15,6 +15,8 @@ data Doc =
   | Align Doc
   | Doc :+ Doc
   | Doc :| Doc
+infixl 3 :+
+infixl 2 :|
 
 type Width = Int
 
@@ -32,13 +34,13 @@ emptyLayout = Layout [""] False
 best :: Width -> [Layout] -> Maybe Layout
 best w layouts = pick (map (\lay -> (badness w lay, lay)) layouts)
 
-badness :: Width -> Layout -> Int
-badness w (Layout lines _) = overflow w lines
+badness :: Width -> Layout -> (Int, Int)
+badness w (Layout lines _) = (overflow w lines, length lines)
   where
     overflow w [] = 0
     overflow w (line:lines) = (max 0 (length line - w)) + overflow w lines
 
-pick :: [(Int, Layout)] -> Maybe Layout
+pick :: [((Int, Int), Layout)] -> Maybe Layout
 pick [] = Nothing
 pick [(bad, lay)] = Just lay
 pick ((bad1, lay1) : (bad2, lay2) : rest) =
@@ -69,7 +71,7 @@ indent i (Layout (line:lines) isFull) =
   where addSpaces i line = replicate i ' ' ++ line
 
 main =
-  let doc = Text "a" :+ Align(Text "b" :+ NL :+ Text "b") :| Text "c"
+  let doc = Text "a" :+ Align(Text "b" :+ NL :+ Text "b") :| Text "c" :+ NL :+ Text "c"
       lines1 = fromJust $ pretty 80 doc
       lines2 = fromJust $ pretty 1 doc in do
   mapM_ putStrLn lines1
