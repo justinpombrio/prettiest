@@ -2,8 +2,6 @@ use crate::log;
 use crate::node::{Height, Width};
 use std::fmt;
 
-pub type Count = u32;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Space {
     Flat(Width),
@@ -12,25 +10,17 @@ pub enum Space {
 
 // INVARIANTS:
 // - height == 0 -> first == middle == last
-// - aligned -> first == middle
-// - height == 0 -> aligned
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Shape {
     first: Width,
     middle: Width,
     last: Width,
-    aligned: bool,
     height: Height,
-    badness: Badness,
+    overflow: Overflow,
 }
 
-// Note that due to the Ord derivation, the order of the fields is relevant: they are sorted by
-// (violations, overflow) lexicographically.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Badness {
-    violations: Count,
-    overflow: Count,
-}
+pub struct Overflow(u32);
 
 // INVARIANTS:
 // - Shapes are in sorted order: sorted by increasing `last`.
@@ -40,29 +30,6 @@ pub struct Badness {
 // call to `normalize()` before the ShapeSet is used again.
 #[derive(Debug, Clone)]
 pub struct ShapeSet(Vec<Shape>);
-
-impl Badness {
-    pub fn good() -> Badness {
-        Badness {
-            violations: 0,
-            overflow: 0,
-        }
-    }
-
-    pub fn overflow(overflow_char_count: Count) -> Badness {
-        Badness {
-            violations: 0,
-            overflow: overflow_char_count,
-        }
-    }
-
-    pub fn violations(violation_count: Count) -> Badness {
-        Badness {
-            violations: violation_count,
-            overflow: 0,
-        }
-    }
-}
 
 impl Space {
     pub fn new_rectangle(width: Width) -> Space {
@@ -101,19 +68,10 @@ impl Space {
                 assert_eq!(shape.height, 0);
                 Flat(available_len - shape.last)
             }
-            NotFlat { first, middle } => {
-                if shape.aligned {
-                    NotFlat {
-                        first: first - shape.last,
-                        middle,
-                    }
-                } else {
-                    NotFlat {
-                        first: middle - shape.last,
-                        middle,
-                    }
-                }
-            }
+            NotFlat { first, middle } => NotFlat {
+                first: middle - shape.last,
+                middle,
+            },
         }
     }
 
@@ -291,11 +249,9 @@ impl IntoIterator for ShapeSet {
 
 impl fmt::Display for Badness {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match (self.violations, self.overflow) {
-            (0, 0) => write!(f, ""),
-            (v, 0) => write!(f, "!v{}", v),
-            (0, o) => write!(f, "!o{}", o),
-            (v, o) => write!(f, "!v{}o{}", v, o),
+        match self.overflow {
+            0 => write!(f, ""),
+            o => write!(f, "!{}", o),
         }
     }
 }

@@ -1,6 +1,5 @@
 import Data.List (replicate)
 import Data.Maybe (maybeToList, fromJust)
-import Control.Monad (replicateM_)
 
 -- Exponentially slow reference implementation of pretty printing
 

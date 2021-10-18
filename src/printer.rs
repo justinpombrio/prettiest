@@ -1,3 +1,123 @@
+use crate::doc::{Annotation, Doc, Id, Notation, Width};
+use crate::measure::{Measure, MeasureSet, Overflow, Space};
+use std::collections::HashMap;
+
+pub struct PrettyResult {
+    pub lines: Vec<String>,
+    pub overflow: Overflow,
+}
+
+pub fn pretty<A: Annotation>(doc: &Doc<A>, width: Width) -> PrettyResult {
+    let space = Space::new_rectangle(width);
+
+    let mut printer = Printer::new();
+    let measures = printer.measure(doc, space);
+    let best_measure = measures.best();
+    let overflow = best_measure.overflow;
+
+    let lines = printer.render(doc, space, best_measure, false, false);
+    PrettyResult { lines, overflow }
+}
+
+struct Printer {
+    cache: HashMap<(Id, Space), MeasureSet>,
+}
+
+impl Printer {
+    fn new() -> Printer {
+        Printer {
+            cache: HashMap::new(),
+        }
+    }
+
+    fn measure<A: Annotation>(&mut self, doc: &Doc<A>, space: Space) -> MeasureSet {
+        use Notation::*;
+
+        if let Some(measures) = self.cache.get(&(doc.id, space)) {
+            return measures.clone();
+        }
+
+        let measures: MeasureSet = match doc.notation.as_ref() {
+            Empty => MeasureSet::one_measure(Measure::single_line(0, space.first)),
+            Text(text) => {
+                let len = text.chars().count() as Width;
+                MeasureSet::one_measure(Measure::single_line(len, space.first))
+            }
+            Spaces(len) => MeasureSet::one_measure(Measure::single_line(*len, space.first)),
+            Newline => MeasureSet::one_measure(Measure::newline()),
+            EndOfLine => {
+                let mut measure = Measure::single_line(0, space.first);
+                measure.is_full = true;
+                MeasureSet::one_measure(measure)
+            }
+            Indent(ind, doc) => self.measure(doc, space.indent(*ind)),
+            Flat(doc) => self.measure(doc, space).filter(|m| m.height == 0),
+            Align(doc) => self.measure(doc, space.align()),
+            Concat(doc1, doc2) => {
+                let mut measures = MeasureSet::new();
+                for m1 in self.measure(doc1, space) {
+                    let remaining_space = space.consume(m1);
+                    measures = measures.union(self.measure(doc2, remaining_space));
+                }
+                measures
+            }
+            Choice(doc1, doc2) => {
+                let m1 = self.measure(doc1, space);
+                let m2 = self.measure(doc2, space);
+                m1.union(m2)
+            }
+            Annotate(_, doc) => self.measure(doc, space),
+        };
+
+        self.cache.insert((doc.id, space), measures.clone());
+        measures
+    }
+
+    fn render<A: Annotation>(
+        &mut self,
+        doc: &Doc<A>,
+        space: Space,
+        measure: Measure,
+        flattened: bool,
+        aligned: bool,
+    ) -> Vec<String> {
+        use Notation::*;
+
+        match doc.notation.as_ref() {
+            Empty => MeasureSet::one_measure(Measure::single_line(0, space.first)),
+            Text(text) => {
+                let len = text.chars().count() as Width;
+                MeasureSet::one_measure(Measure::single_line(len, space.first))
+            }
+            Spaces(len) => MeasureSet::one_measure(Measure::single_line(*len, space.first)),
+            Newline => MeasureSet::one_measure(Measure::newline()),
+            EndOfLine => {
+                let mut measure = Measure::single_line(0, space.first);
+                measure.is_full = true;
+                MeasureSet::one_measure(measure)
+            }
+            Indent(ind, doc) => self.measure(doc, space.indent(*ind)),
+            Flat(doc) => self.measure(doc, space).filter(|m| m.height == 0),
+            Align(doc) => self.measure(doc, space.align()),
+            Concat(doc1, doc2) => {
+                let mut measures = MeasureSet::new();
+                for m1 in self.measure(doc1, space) {
+                    let remaining_space = space.consume(m1);
+                    measures = measures.union(self.measure(doc2, remaining_space));
+                }
+                measures
+            }
+            Choice(doc1, doc2) => {
+                let m1 = self.measure(doc1, space);
+                let m2 = self.measure(doc2, space);
+                m1.union(m2)
+            }
+            Annotate(_, doc) => self.measure(doc, space),
+        };
+    }
+}
+
+/*
 use crate::node::{Id, Node, Notation, Width};
 use crate::shapes::{Badness, Shape, ShapeSet, Space};
 use crate::{log, log_span};
@@ -151,3 +271,4 @@ fn concat_lines(left_lines: Vec<String>, right_lines: Vec<String>, aligned: bool
     }
     lines
 }
+*/
