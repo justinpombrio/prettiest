@@ -1,10 +1,10 @@
-use crate::node::{align, flat, nl, spaces, text, text_owned, Node};
+use crate::doc::{align, flat, nl, spaces, text, text_owned, Doc};
 
-pub fn null() -> Node {
+pub fn null() -> Doc<()> {
     text("null")
 }
 
-pub fn bool(b: bool) -> Node {
+pub fn bool(b: bool) -> Doc<()> {
     if b {
         text("true")
     } else {
@@ -12,7 +12,7 @@ pub fn bool(b: bool) -> Node {
     }
 }
 
-pub fn string(s: &str) -> Node {
+pub fn string(s: &str) -> Doc<()> {
     let mut string = "\"".to_owned();
     for ch in s.escape_default() {
         string.push(ch);
@@ -21,7 +21,7 @@ pub fn string(s: &str) -> Node {
     text_owned(string)
 }
 
-pub fn number(n: f32) -> Node {
+pub fn number(n: f32) -> Doc<()> {
     text_owned(format!("{}", n))
 }
 
@@ -33,7 +33,7 @@ pub fn number(n: f32) -> Node {
 ///      elem5_which_is_longer, elem6,
 ///      elem7]
 /// ```
-pub fn array(elems: Vec<Node>) -> Node {
+pub fn array(elems: Vec<Doc<()>>) -> Doc<()> {
     let mut elems = elems.into_iter();
     if let Some(first_elem) = elems.next() {
         let mut list = first_elem;
@@ -76,8 +76,8 @@ pub fn array(elems: Vec<Node>) -> Node {
 /// { "worlds-longest-key-yeah-its-pretty-long":
 ///       "value's shorter though" }
 /// ```
-pub fn object<'a>(pairs: Vec<(&'a str, Node)>) -> Node {
-    fn print_pair(key: &str, val: Node) -> Node {
+pub fn object<'a>(pairs: Vec<(&'a str, Doc<()>)>) -> Doc<()> {
+    fn print_pair(key: &str, val: Doc<()>) -> Doc<()> {
         string(key) + text(":") + (text(" ") | nl() + text("    ")) + align(val)
     }
 

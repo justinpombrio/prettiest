@@ -117,6 +117,7 @@ fn best(width: Width, layouts: Vec<Layout>) -> Option<Layout> {
     Some(best_so_far.1)
 }
 
+/*
 #[test]
 fn super_basic_oracle_test() {
     use crate::doc::{align, nl, text};
@@ -133,3 +134,4 @@ fn super_basic_oracle_test() {
         vec!["c", "c"]
     );
 }
+*/

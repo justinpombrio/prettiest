@@ -46,7 +46,7 @@ impl<A: Annotation> fmt::Display for Notation<A> {
             Flat(d) => write!(f, "Flat({})", d),
             Align(d) => write!(f, "Align({})", d),
             Concat(d1, d2) => write!(f, "{} + {}", d1, d2),
-            Choice(d1, d2) => write!(f, "{} | {}", d1, d2),
+            Choice(d1, d2) => write!(f, "({} | {})", d1, d2),
             Annotate(_, d) => write!(f, "@{}", d),
         }
     }
@@ -71,6 +71,10 @@ impl<A: Annotation> Doc<A> {
             notation: Rc::new(notation),
         }
     }
+}
+
+pub fn empty<A: Annotation>() -> Doc<A> {
+    Doc::new(Notation::Empty)
 }
 
 pub fn text_owned<A: Annotation>(s: String) -> Doc<A> {

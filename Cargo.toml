@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = "*"
+permutation_iterator = "0.1.*"
 
 [features]
 logging = []
