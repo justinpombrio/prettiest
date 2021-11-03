@@ -48,7 +48,8 @@ impl Space {
             width: self.width,
             first: measure.last,
             indent: self.indent,
-            is_full: measure.is_full,
+            is_full: measure.is_full
+                || self.is_full && measure.height == 0 && measure.last == self.first,
         }
     }
 }
@@ -63,4 +64,185 @@ impl fmt::Display for Space {
             (true, Some(indent)) => write!(f, "{}:{}:{}.", self.first, self.width, indent),
         }
     }
+}
+
+#[test]
+fn space_unit_tests() {
+    // space:   width, first, indent, is_full
+    // measure: last, height, overflow, is_full
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: None,
+        is_full: false,
+    };
+    let measure = Measure {
+        last: 1,
+        height: 0,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 1,
+            indent: None,
+            is_full: false,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: None,
+        is_full: false,
+    };
+    let measure = Measure {
+        last: -2,
+        height: 0,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: -2,
+            indent: None,
+            is_full: false,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: false,
+    };
+    let measure = Measure {
+        last: 4,
+        height: 1,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 4,
+            indent: Some(2),
+            is_full: false,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: true,
+    };
+    let measure = Measure {
+        last: 3,
+        height: 0,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 3,
+            indent: Some(2),
+            is_full: true,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: true,
+    };
+    let measure = Measure {
+        last: 3,
+        height: 1,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 3,
+            indent: Some(2),
+            is_full: false,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: true,
+    };
+    let measure = Measure {
+        last: 3,
+        height: 0,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 3,
+            indent: Some(2),
+            is_full: true,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: true,
+    };
+    let measure = Measure {
+        last: 2,
+        height: 0,
+        overflow: 0,
+        is_full: false,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 2,
+            indent: Some(2),
+            is_full: false,
+        }
+    );
+
+    let space = Space {
+        width: 10,
+        first: 3,
+        indent: Some(2),
+        is_full: false,
+    };
+    let measure = Measure {
+        last: 2,
+        height: 0,
+        overflow: 0,
+        is_full: true,
+    };
+    assert_eq!(
+        space.consume(measure),
+        Space {
+            width: 10,
+            first: 2,
+            indent: Some(2),
+            is_full: true,
+        }
+    );
 }

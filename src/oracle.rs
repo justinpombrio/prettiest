@@ -1,6 +1,8 @@
 //! Exponentially slow reference implementation of pretty printing
 
 use crate::doc::{Annotation, Doc, Notation, Width};
+use crate::measure::Overflow;
+use crate::printer::PrettyResult;
 
 #[derive(Debug, Clone)]
 struct Layout {
@@ -8,10 +10,51 @@ struct Layout {
     is_full: bool,
 }
 
-pub fn oracular_pretty_print<A: Annotation>(doc: Doc<A>, width: Width) -> Option<Vec<String>> {
-    let all_layouts = Layout::empty().layouts(&doc);
-    let best_layout = best(width, all_layouts);
-    best_layout.map(|layout| layout.lines)
+pub fn verify_with_oracle<A: Annotation>(
+    doc: &Doc<A>,
+    width: Width,
+    result: &PrettyResult,
+) -> Result<(), PrettyResult> {
+    let all_layouts = Layout::empty().layouts(&doc, Some(0));
+
+    let valid_layouts = {
+        let min_badness = all_layouts.iter().map(|lay| lay.badness(width)).min();
+        if let Some(min_badness) = min_badness {
+            all_layouts
+                .into_iter()
+                .filter(|lay| lay.badness(width) == min_badness)
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        }
+    };
+    let mut valid_results = valid_layouts
+        .into_iter()
+        .map(|lay| lay.into_pretty_result(width))
+        .collect::<Vec<_>>();
+
+    match &result {
+        PrettyResult::Invalid => {
+            if let Some(valid_result) = valid_results.drain(..).next() {
+                Err(valid_result)
+            } else {
+                Ok(())
+            }
+        }
+        PrettyResult::Valid { .. } => {
+            if valid_results.is_empty() {
+                Err(PrettyResult::Invalid)
+            } else if valid_results.contains(&result) {
+                Ok(())
+            } else if let Some(valid_result) =
+                valid_results.iter().find(|r| has_same_lines(r, &result))
+            {
+                Err(valid_result.to_owned())
+            } else {
+                Err(valid_results.drain(..).next().unwrap())
+            }
+        }
+    }
 }
 
 impl Layout {
@@ -31,25 +74,24 @@ impl Layout {
         (overflow, height)
     }
 
-    fn indent(mut self, ind: Width) -> Layout {
-        let mut lines = self.lines.iter_mut();
-        lines.next();
-        for line in lines {
-            *line = format!("{:indent$}{}", "", line, indent = ind as usize);
+    fn into_pretty_result(self, width: Width) -> PrettyResult {
+        PrettyResult::Valid {
+            overflow: self.badness(width).0 as Overflow,
+            lines: self.lines,
         }
-        self
     }
 
-    fn layouts<A: Annotation>(mut self, doc: &Doc<A>) -> Vec<Layout> {
+    fn layouts<A: Annotation>(mut self, doc: &Doc<A>, indent: Option<usize>) -> Vec<Layout> {
         use Notation::*;
 
-        match doc.notation.as_ref() {
+        match doc.notation() {
             Empty => vec![self],
             Text(text) if self.is_full && text.chars().count() > 0 => vec![],
             Text(text) => {
                 self.lines.last_mut().unwrap().push_str(text);
                 vec![self]
             }
+            Spaces(n) if self.is_full && *n > 0 => vec![],
             Spaces(n) => {
                 let last_line = self.lines.last_mut().unwrap();
                 for _ in 0..*n {
@@ -58,80 +100,49 @@ impl Layout {
                 vec![self]
             }
             Newline => {
-                self.lines.push("".to_string());
-                self.is_full = false;
-                vec![self]
+                if let Some(indent) = indent {
+                    self.lines.push(" ".repeat(indent as usize));
+                    self.is_full = false;
+                    vec![self]
+                } else {
+                    vec![]
+                }
             }
             EndOfLine => {
                 self.is_full = true;
                 vec![self]
             }
-            Indent(i, doc) => self
-                .layouts(doc)
-                .into_iter()
-                .map(|lay| lay.indent(*i))
-                .collect(),
-            Flat(doc) => self
-                .layouts(doc)
-                .into_iter()
-                .filter(|lay| lay.lines.len() == 1)
-                .collect(),
+            Indent(j, doc) => self.layouts(doc, indent.map(|i| i + (*j as usize))),
+            Flat(doc) => self.layouts(doc, None),
             Align(doc) => {
-                let ind = self.lines.last().unwrap().chars().count() as Width;
-                self.layouts(doc)
-                    .into_iter()
-                    .map(|lay| lay.indent(ind))
-                    .collect()
+                let ind = self.lines.last().unwrap().chars().count();
+                self.layouts(doc, indent.map(|i| i + ind))
             }
             Concat(doc1, doc2) => self
-                .layouts(doc1)
+                .layouts(doc1, indent)
                 .into_iter()
-                .flat_map(|lay1| lay1.layouts(doc2))
-                .collect(),
+                .flat_map(|lay1| lay1.layouts(doc2, indent))
+                .collect::<Vec<_>>(),
             Choice(doc1, doc2) => {
-                let mut docs = self.clone().layouts(doc1);
-                docs.append(&mut self.layouts(doc2));
-                docs
+                let mut layouts = self.clone().layouts(doc1, indent);
+                layouts.append(&mut self.layouts(doc2, indent));
+                layouts
             }
-            Annotate(_, doc) => self.layouts(doc),
+            Annotate(_, doc) => self.layouts(doc, indent),
         }
     }
 }
 
-fn best(width: Width, layouts: Vec<Layout>) -> Option<Layout> {
-    if layouts.is_empty() {
-        return None;
+fn has_same_lines(left: &PrettyResult, right: &PrettyResult) -> bool {
+    match (left, right) {
+        (
+            PrettyResult::Valid {
+                lines: left_lines, ..
+            },
+            PrettyResult::Valid {
+                lines: right_lines, ..
+            },
+        ) => left_lines == right_lines,
+        (_, _) => false,
     }
-    let mut layouts = layouts.into_iter();
-    let mut best_so_far = {
-        let first_layout = layouts.next().unwrap();
-        let badness = first_layout.badness(width);
-        (badness, first_layout)
-    };
-    while let Some(layout) = layouts.next() {
-        let badness = layout.badness(width);
-        if badness < best_so_far.0 {
-            best_so_far = (badness, layout);
-        }
-    }
-    Some(best_so_far.1)
 }
-
-/*
-#[test]
-fn super_basic_oracle_test() {
-    use crate::doc::{align, nl, text};
-
-    let doc: Doc<()> =
-        text("a") + align(text("b") + nl() + text("b")) | text("c") + nl() + text("c");
-
-    assert_eq!(
-        oracular_pretty_print(doc.clone(), 80).unwrap(),
-        vec!["ab", " b"]
-    );
-    assert_eq!(
-        oracular_pretty_print(doc.clone(), 1).unwrap(),
-        vec!["c", "c"]
-    );
-}
-*/

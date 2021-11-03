@@ -13,8 +13,8 @@ pub type Width = i16;
 
 #[derive(Clone)]
 pub struct Doc<A: Annotation> {
-    pub id: Id,
-    pub notation: Rc<Notation<A>>,
+    id: Id,
+    notation: Rc<Notation<A>>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +49,16 @@ impl<A: Annotation> fmt::Display for Notation<A> {
             Choice(d1, d2) => write!(f, "({} | {})", d1, d2),
             Annotate(_, d) => write!(f, "@{}", d),
         }
+    }
+}
+
+impl<A: Annotation> Doc<A> {
+    pub fn id(&self) -> Id {
+        self.id
+    }
+
+    pub fn notation(&self) -> &Notation<A> {
+        &self.notation
     }
 }
 
@@ -91,6 +101,14 @@ pub fn spaces<A: Annotation>(width: Width) -> Doc<A> {
 
 pub fn nl<A: Annotation>() -> Doc<A> {
     Doc::new(Notation::Newline)
+}
+
+pub fn eol<A: Annotation>() -> Doc<A> {
+    Doc::new(Notation::EndOfLine)
+}
+
+pub fn indent<A: Annotation>(ind: Width, node: Doc<A>) -> Doc<A> {
+    Doc::new(Notation::Indent(ind, node))
 }
 
 pub fn flat<A: Annotation>(node: Doc<A>) -> Doc<A> {

@@ -1,21 +1,17 @@
-#![feature(const_fn)]
-#![feature(const_impl_trait)]
-
 mod doc;
 mod measure;
-mod oracle;
 mod printer;
 mod space;
 #[macro_use]
 mod infra;
-mod doc_generator;
-mod generators;
 
+pub mod oracle;
 pub mod pretty_json;
 
-// TODO: temporary
-pub use doc::*;
-pub use generators::*;
-pub use measure::*;
-pub use oracle::*;
-pub use printer::*;
+pub use doc::{Annotation, Doc, Height, Id, Notation, Width};
+pub use measure::Overflow;
+pub use printer::{pretty_print, PrettyResult};
+
+pub mod constructors {
+    pub use super::doc::{align, empty, eol, flat, indent, nl, spaces, text, text_owned};
+}

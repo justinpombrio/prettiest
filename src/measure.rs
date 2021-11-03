@@ -1,5 +1,6 @@
 use crate::doc::{Height, Width};
 use crate::log;
+use crate::space::Space;
 use std::fmt;
 use std::iter::Peekable;
 
@@ -25,13 +26,22 @@ pub struct Measure {
 pub struct MeasureSet(Vec<Measure>);
 
 impl Measure {
-    pub fn single_line(len: Width, available_len: Width) -> Measure {
-        Measure {
-            last: available_len - len,
-            height: 0,
-            overflow: (len - available_len).max(0) as Overflow,
-            is_full: false,
+    pub fn single_line(len: Width, space: Space) -> Option<Measure> {
+        if space.is_full && len > 0 {
+            return None;
         }
+
+        let overflow = if space.first < 0 {
+            len as Overflow
+        } else {
+            (len - space.first).max(0) as Overflow
+        };
+        Some(Measure {
+            last: space.first - len,
+            height: 0,
+            overflow,
+            is_full: space.is_full,
+        })
     }
 
     pub fn newline(indent: Width, width: Width) -> Measure {
@@ -48,7 +58,7 @@ impl Measure {
             last: other.last,
             height: self.height + other.height,
             overflow: self.overflow + other.overflow,
-            is_full: other.is_full,
+            is_full: other.is_full || self.is_full && other.height == 0 && other.last == self.last,
         }
     }
 
@@ -72,11 +82,6 @@ impl MeasureSet {
 
     pub fn best(self) -> Option<Measure> {
         self.0.first().map(|m| *m)
-    }
-
-    pub fn filter<F: Fn(&Measure) -> bool>(self, func: F) -> MeasureSet {
-        // Every valid (obeying the invariants) subsequence is itself valid.
-        MeasureSet(self.0.into_iter().filter(func).collect::<Vec<_>>())
     }
 
     pub fn union(self, other: MeasureSet) -> MeasureSet {
@@ -182,4 +187,124 @@ impl fmt::Display for MeasureSet {
             write!(f, "[]")
         }
     }
+}
+
+#[test]
+fn measure_unit_tests() {
+    assert_eq!(
+        Measure::single_line(
+            0,
+            Space {
+                width: 10,
+                first: 3,
+                indent: None,
+                is_full: false,
+            }
+        ),
+        Some(Measure {
+            last: 3,
+            height: 0,
+            overflow: 0,
+            is_full: false,
+        })
+    );
+    assert_eq!(
+        Measure::single_line(
+            0,
+            Space {
+                width: 10,
+                first: 3,
+                indent: None,
+                is_full: true,
+            }
+        ),
+        Some(Measure {
+            last: 3,
+            height: 0,
+            overflow: 0,
+            is_full: true,
+        })
+    );
+    assert_eq!(
+        Measure::single_line(
+            2,
+            Space {
+                width: 10,
+                first: 3,
+                indent: None,
+                is_full: false,
+            }
+        ),
+        Some(Measure {
+            last: 1,
+            height: 0,
+            overflow: 0,
+            is_full: false,
+        })
+    );
+    assert_eq!(
+        Measure::single_line(
+            2,
+            Space {
+                width: 10,
+                first: 3,
+                indent: None,
+                is_full: true,
+            }
+        ),
+        None,
+    );
+    assert_eq!(
+        Measure::single_line(
+            5,
+            Space {
+                width: 10,
+                first: 3,
+                indent: None,
+                is_full: false,
+            }
+        ),
+        Some(Measure {
+            last: -2,
+            height: 0,
+            overflow: 2,
+            is_full: false,
+        })
+    );
+    assert_eq!(
+        Measure::single_line(
+            5,
+            Space {
+                width: 10,
+                first: -3,
+                indent: None,
+                is_full: false,
+            }
+        ),
+        Some(Measure {
+            last: -8,
+            height: 0,
+            overflow: 5,
+            is_full: false,
+        })
+    );
+
+    assert_eq!(
+        Measure::newline(2, 10),
+        Measure {
+            last: 8,
+            height: 1,
+            overflow: 0,
+            is_full: false,
+        }
+    );
+    assert_eq!(
+        Measure::newline(12, 10),
+        Measure {
+            last: -2,
+            height: 1,
+            overflow: 2,
+            is_full: false,
+        }
+    );
 }

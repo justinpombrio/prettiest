@@ -3,15 +3,16 @@ use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::ops::BitOr;
 use std::rc::Rc;
 
 type Size = u32;
 type Count = u128;
 
-pub trait Gen<T> {
+pub trait Gen {
+    type Item;
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count;
-    fn get(&self, factory: &mut Factory, size: Size, index: Count) -> Option<T>;
+    fn get(&self, factory: &mut Factory, size: Size, index: Count) -> Option<Self::Item>;
 }
 
 pub struct Factory {
@@ -31,7 +32,7 @@ impl Factory {
         }
     }
 
-    pub fn register<T: 'static>(&mut self, generator: impl Gen<T> + Any) {
+    pub fn register<T: 'static>(&mut self, generator: impl Gen<Item = T> + Any) {
         let id = TypeId::of::<T>();
         if self.generators.get(&id).is_some() {
             panic!(
@@ -40,7 +41,7 @@ impl Factory {
             );
         }
 
-        let rc: Rc<dyn Gen<T>> = Rc::new(generator);
+        let rc: Rc<dyn Gen<Item = T>> = Rc::new(generator);
         self.generators.insert(id, Box::new(rc));
     }
 
@@ -101,12 +102,12 @@ impl Factory {
         IterRandom::from_seed(self, size, seed)
     }
 
-    fn lookup<T: 'static>(&mut self) -> Rc<dyn Gen<T>> {
+    fn lookup<T: 'static>(&mut self) -> Rc<dyn Gen<Item = T>> {
         let id = TypeId::of::<T>();
         if let Some(generator) = self.generators.get(&id) {
             generator
                 .as_ref()
-                .downcast_ref::<Rc<dyn Gen<T>>>()
+                .downcast_ref::<Rc<dyn Gen<Item = T>>>()
                 .unwrap()
                 .clone()
         } else {
@@ -119,26 +120,30 @@ impl Factory {
  * Constructors *
  ****************/
 
-pub fn gen_inc<A, G: Gen<A>>(generator: G) -> impl Gen<A> {
+pub fn gen_inc<A>(generator: impl Gen<Item = A>) -> impl Gen<Item = A> {
     GenInc {
         generator,
         phantom: PhantomData,
     }
 }
 
-pub fn gen_rec<A: 'static>() -> impl Gen<A> {
+pub fn gen_rec<A: 'static + Clone>() -> impl Gen<Item = A> + Clone {
     GenRec(PhantomData)
 }
 
-pub fn gen_value<T: Clone>(value: T) -> impl Gen<T> {
+pub fn gen_value<T: Clone>(value: T) -> impl Gen<Item = T> {
     GenValue(value)
 }
 
-pub fn gen_set<T: Clone>(values: Vec<T>) -> impl Gen<T> {
+#[allow(unused)]
+pub fn gen_set<T: Clone>(values: Vec<T>) -> impl Gen<Item = T> {
     GenSet(values)
 }
 
-pub fn gen_pair<A, B, GA: Gen<A>, GB: Gen<B>>(left: GA, right: GB) -> impl Gen<(A, B)> {
+pub fn gen_pair<A, B>(
+    left: impl Gen<Item = A>,
+    right: impl Gen<Item = B>,
+) -> impl Gen<Item = (A, B)> {
     GenPair {
         left,
         right,
@@ -147,7 +152,7 @@ pub fn gen_pair<A, B, GA: Gen<A>, GB: Gen<B>>(left: GA, right: GB) -> impl Gen<(
     }
 }
 
-pub fn gen_choice<A, G1: Gen<A>, G2: Gen<A>>(left: G1, right: G2) -> impl Gen<A> {
+pub fn gen_choice<A>(left: impl Gen<Item = A>, right: impl Gen<Item = A>) -> impl Gen<Item = A> {
     GenChoice {
         left,
         right,
@@ -155,7 +160,7 @@ pub fn gen_choice<A, G1: Gen<A>, G2: Gen<A>>(left: G1, right: G2) -> impl Gen<A>
     }
 }
 
-pub fn gen_map<A, B, GA: Gen<A>, F: Fn(A) -> B>(generator: GA, func: F) -> impl Gen<B> {
+pub fn gen_map<A, B>(generator: impl Gen<Item = A>, func: impl Fn(A) -> B) -> impl Gen<Item = B> {
     GenMap {
         generator,
         func,
@@ -163,27 +168,29 @@ pub fn gen_map<A, B, GA: Gen<A>, F: Fn(A) -> B>(generator: GA, func: F) -> impl 
     }
 }
 
-/*
-impl<G1: Gen<T>, T> BitOr for G1 {
-    type Output = GenChoice<A, G1, G2>;
-
-    fn bitor(self, other: G2) -> GenChoice<A, G1, G2> {
-        GenChoice {
-            left: self,
-            right: other,
-            phantom: PhantomData,
-        }
+pub fn gen_seq<A>(func: impl Fn(Size) -> A) -> impl Gen<Item = A> {
+    GenSeq {
+        func,
+        phantom: PhantomData,
     }
 }
-*/
+
+#[macro_export]
+macro_rules! gen_choices {
+    ($x:expr) => ($x);
+    ($x:expr, $($y:expr),+) => ($crate::tests::common::generators::gen_choice($x, gen_choices!($($y),+)));
+}
 
 /*************
  * Recursion *
  *************/
 
+#[derive(Clone)]
 struct GenRec<T>(PhantomData<T>);
 
-impl<T: 'static> Gen<T> for GenRec<T> {
+impl<T: 'static> Gen for GenRec<T> {
+    type Item = T;
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count {
         factory.count::<T>(size)
     }
@@ -193,12 +200,14 @@ impl<T: 'static> Gen<T> for GenRec<T> {
     }
 }
 
-struct GenInc<T, G: Gen<T>> {
+struct GenInc<T, G: Gen<Item = T>> {
     generator: G,
     phantom: PhantomData<T>,
 }
 
-impl<T, G: Gen<T>> Gen<T> for GenInc<T, G> {
+impl<T, G: Gen<Item = T>> Gen for GenInc<T, G> {
+    type Item = T;
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count {
         if size == 0 {
             0
@@ -222,7 +231,9 @@ impl<T, G: Gen<T>> Gen<T> for GenInc<T, G> {
 
 struct GenValue<T: Clone>(T);
 
-impl<T: Clone> Gen<T> for GenValue<T> {
+impl<T: Clone> Gen for GenValue<T> {
+    type Item = T;
+
     fn count(&self, _factory: &mut Factory, size: Size) -> Count {
         if size == 0 {
             1
@@ -242,7 +253,9 @@ impl<T: Clone> Gen<T> for GenValue<T> {
 
 struct GenSet<T: Clone>(Vec<T>);
 
-impl<T: Clone> Gen<T> for GenSet<T> {
+impl<T: Clone> Gen for GenSet<T> {
+    type Item = T;
+
     fn count(&self, _factory: &mut Factory, size: Size) -> Count {
         if size == 0 {
             self.0.len() as Count
@@ -264,14 +277,16 @@ impl<T: Clone> Gen<T> for GenSet<T> {
  * Pairs *
  *********/
 
-struct GenPair<A, B, GA: Gen<A>, GB: Gen<B>> {
+struct GenPair<A, B, GA: Gen<Item = A>, GB: Gen<Item = B>> {
     left: GA,
     right: GB,
     phantom_a: PhantomData<A>,
     phantom_b: PhantomData<B>,
 }
 
-impl<A, B, GA: Gen<A>, GB: Gen<B>> Gen<(A, B)> for GenPair<A, B, GA, GB> {
+impl<A, B, GA: Gen<Item = A>, GB: Gen<Item = B>> Gen for GenPair<A, B, GA, GB> {
+    type Item = (A, B);
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count {
         let mut count = 0;
         for lsize in 0..=size {
@@ -311,16 +326,18 @@ struct GenSeq<A, F: Fn(Size) -> A> {
     phantom: PhantomData<A>,
 }
 
-impl<A, F: Fn(Size) -> A> Gen<A> for GenSeq<A, F> {
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
+impl<A, F: Fn(Size) -> A> Gen for GenSeq<A, F> {
+    type Item = A;
+
+    fn count(&self, _factory: &mut Factory, _size: Size) -> Count {
         1
     }
 
-    fn get(&self, factory: &mut Factory, size: Size, index: Count) -> Option<A> {
+    fn get(&self, _factory: &mut Factory, size: Size, index: Count) -> Option<A> {
         if index == 0 {
-            None
-        } else {
             Some((self.func)(size))
+        } else {
+            None
         }
     }
 }
@@ -329,13 +346,15 @@ impl<A, F: Fn(Size) -> A> Gen<A> for GenSeq<A, F> {
  * Mapping *
  ***********/
 
-struct GenMap<A, B, GA: Gen<A>, F: Fn(A) -> B> {
+struct GenMap<A, B, GA: Gen<Item = A>, F: Fn(A) -> B> {
     generator: GA,
     func: F,
     phantom: PhantomData<A>,
 }
 
-impl<A, B, GA: Gen<A>, F: Fn(A) -> B> Gen<B> for GenMap<A, B, GA, F> {
+impl<A, B, GA: Gen<Item = A>, F: Fn(A) -> B> Gen for GenMap<A, B, GA, F> {
+    type Item = B;
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count {
         self.generator.count(factory, size)
     }
@@ -349,13 +368,15 @@ impl<A, B, GA: Gen<A>, F: Fn(A) -> B> Gen<B> for GenMap<A, B, GA, F> {
  * Choice *
  ***********/
 
-struct GenChoice<A, G1: Gen<A>, G2: Gen<A>> {
+struct GenChoice<A, G1: Gen<Item = A>, G2: Gen<Item = A>> {
     left: G1,
     right: G2,
     phantom: PhantomData<A>,
 }
 
-impl<A, G1: Gen<A>, G2: Gen<A>> Gen<A> for GenChoice<A, G1, G2> {
+impl<A, G1: Gen<Item = A>, G2: Gen<Item = A>> Gen for GenChoice<A, G1, G2> {
+    type Item = A;
+
     fn count(&self, factory: &mut Factory, size: Size) -> Count {
         self.left.count(factory, size) + self.right.count(factory, size)
     }

@@ -4,21 +4,28 @@ use crate::space::Space;
 use crate::{log, log_span};
 use std::collections::HashMap;
 
-pub struct PrettyResult {
-    pub lines: Vec<String>,
-    pub overflow: Overflow,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrettyResult {
+    Invalid,
+    Valid {
+        lines: Vec<String>,
+        overflow: Overflow,
+    },
 }
 
-pub fn pretty<A: Annotation>(doc: &Doc<A>, width: Width) -> Option<PrettyResult> {
+pub fn pretty_print<A: Annotation>(doc: &Doc<A>, width: Width) -> PrettyResult {
     let space = Space::new_rectangle(width);
 
     let mut printer = Printer::new();
     let measures = printer.measure(doc, space);
-    let best_measure = measures.best()?;
+    let best_measure = match measures.best() {
+        None => return PrettyResult::Invalid,
+        Some(measure) => measure,
+    };
     let overflow = best_measure.overflow;
 
     let lines = printer.render(doc, space, best_measure).0;
-    Some(PrettyResult { lines, overflow })
+    PrettyResult::Valid { lines, overflow }
 }
 
 struct Printer {
@@ -37,28 +44,38 @@ impl Printer {
 
         log_span!();
 
-        if let Some(measures) = self.cache.get(&(doc.id, space)) {
+        if let Some(measures) = self.cache.get(&(doc.id(), space)) {
             log!("Measure (cached) ({}) {} = {}", doc, space, measures);
             return measures.clone();
         }
 
         // INVARIANT: Must match the behavior of `render`
-        let measures: MeasureSet = match doc.notation.as_ref() {
-            Empty => MeasureSet::one_measure(Measure::single_line(0, space.first)),
+        let measures: MeasureSet = match doc.notation() {
+            Empty => match Measure::single_line(0, space) {
+                Some(measure) => MeasureSet::one_measure(measure),
+                None => MeasureSet::new(),
+            },
             Text(text) => {
                 let len = text.chars().count() as Width;
-                MeasureSet::one_measure(Measure::single_line(len, space.first))
+                match Measure::single_line(len, space) {
+                    Some(measure) => MeasureSet::one_measure(measure),
+                    None => MeasureSet::new(),
+                }
             }
-            Spaces(len) => MeasureSet::one_measure(Measure::single_line(*len, space.first)),
+            Spaces(len) => match Measure::single_line(*len, space) {
+                Some(measure) => MeasureSet::one_measure(measure),
+                None => MeasureSet::new(),
+            },
             Newline => match space.indent {
                 None => MeasureSet::new(),
                 Some(ind) => MeasureSet::one_measure(Measure::newline(ind, space.width)),
             },
-            EndOfLine => {
-                let mut measure = Measure::single_line(0, space.first);
-                measure.is_full = true;
-                MeasureSet::one_measure(measure)
-            }
+            EndOfLine => MeasureSet::one_measure(Measure {
+                last: space.first,
+                height: 0,
+                overflow: 0,
+                is_full: true,
+            }),
             Indent(ind, doc) => self.measure(doc, space.indent(*ind)),
             Flat(doc) => self.measure(doc, space.flatten()),
             Align(doc) => self.measure(doc, space.align()),
@@ -80,7 +97,7 @@ impl Printer {
         };
 
         log!("Measure ({}) {} = {}", doc, space, measures);
-        self.cache.insert((doc.id, space), measures.clone());
+        self.cache.insert((doc.id(), space), measures.clone());
         measures
     }
 
@@ -88,7 +105,7 @@ impl Printer {
         use Notation::*;
 
         // INVARIANT: Must match the behavior of `measure`
-        match doc.notation.as_ref() {
+        match doc.notation() {
             Empty => Lines::new(),
             Spaces(len) => Lines::new().append(&" ".repeat(*len as usize)),
             Text(text) => Lines::new().append(text),
