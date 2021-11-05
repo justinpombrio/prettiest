@@ -4,6 +4,7 @@ use prettiest::constructors::{align, empty, eol, flat, indent, nl, spaces, text_
 use prettiest::{Doc, Width};
 
 pub use super::generators::Factory;
+pub use super::generators::Size;
 
 pub fn doc_factory() -> Factory {
     let mut factory = Factory::new();
@@ -57,8 +58,9 @@ pub fn doc_factory() -> Factory {
 fn test_doc_factory() {
     let mut factory = doc_factory();
 
-    assert_eq!(factory.count::<Doc<()>>(0), 5);
+    assert_eq!(factory.count::<Doc<()>>(0), Some(5));
     assert_eq!(factory.iter::<Doc<()>>(0).count(), 5);
-    assert_eq!(factory.count::<Doc<()>>(1), 67);
+    assert_eq!(factory.count::<Doc<()>>(1), Some(67));
     assert_eq!(factory.iter::<Doc<()>>(1).count(), 67);
+    assert_eq!(factory.count::<Doc<()>>(100), None);
 }

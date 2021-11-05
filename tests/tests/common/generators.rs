@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-type Size = u32;
-type Count = u128;
+pub type Size = u32;
+pub type Count = u128;
 
 pub trait Gen {
     type Item;
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count;
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count>;
     fn get(&self, factory: &mut Factory, size: Size, index: Count) -> Option<Self::Item>;
 }
 
@@ -45,16 +45,16 @@ impl Factory {
         self.generators.insert(id, Box::new(rc));
     }
 
-    pub fn count<T: 'static>(&mut self, size: Size) -> Count {
+    pub fn count<T: 'static>(&mut self, size: Size) -> Option<Count> {
         let id = TypeId::of::<T>();
         if let Some(count) = self.counts_cache.get(&(id, size)) {
-            return *count;
+            return Some(*count);
         }
 
         let generator = self.lookup::<T>();
-        let count = generator.count(self, size);
+        let count = generator.count(self, size)?;
         self.counts_cache.insert((id, size), count);
-        count
+        Some(count)
     }
 
     pub fn get<T: 'static>(&mut self, size: Size, index: Count) -> Option<T> {
@@ -62,9 +62,9 @@ impl Factory {
         generator.get(self, size, index)
     }
 
-    /// Only works if count[size] fits within u64!
+    /// Only works if count[size] fits within u128!
     pub fn random<T: 'static>(&mut self, size: Size) -> Option<T> {
-        let count = self.count::<T>(size);
+        let count = self.count::<T>(size)?;
         if count == 0 {
             return None;
         }
@@ -74,7 +74,7 @@ impl Factory {
 
     /// Only works if count[size] fits within u64!
     pub fn random_with_seed<T: 'static>(&mut self, size: Size, seed: [u8; 32]) -> Option<T> {
-        let count = self.count::<T>(size);
+        let count = self.count::<T>(size)?;
         if count == 0 {
             return None;
         }
@@ -191,7 +191,7 @@ struct GenRec<T>(PhantomData<T>);
 impl<T: 'static> Gen for GenRec<T> {
     type Item = T;
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count> {
         factory.count::<T>(size)
     }
 
@@ -208,9 +208,9 @@ struct GenInc<T, G: Gen<Item = T>> {
 impl<T, G: Gen<Item = T>> Gen for GenInc<T, G> {
     type Item = T;
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count> {
         if size == 0 {
-            0
+            Some(0)
         } else {
             self.generator.count(factory, size - 1)
         }
@@ -234,11 +234,11 @@ struct GenValue<T: Clone>(T);
 impl<T: Clone> Gen for GenValue<T> {
     type Item = T;
 
-    fn count(&self, _factory: &mut Factory, size: Size) -> Count {
+    fn count(&self, _factory: &mut Factory, size: Size) -> Option<Count> {
         if size == 0 {
-            1
+            Some(1)
         } else {
-            0
+            Some(0)
         }
     }
 
@@ -256,11 +256,11 @@ struct GenSet<T: Clone>(Vec<T>);
 impl<T: Clone> Gen for GenSet<T> {
     type Item = T;
 
-    fn count(&self, _factory: &mut Factory, size: Size) -> Count {
+    fn count(&self, _factory: &mut Factory, size: Size) -> Option<Count> {
         if size == 0 {
-            self.0.len() as Count
+            Some(self.0.len() as Count)
         } else {
-            0
+            Some(0)
         }
     }
 
@@ -287,23 +287,23 @@ struct GenPair<A, B, GA: Gen<Item = A>, GB: Gen<Item = B>> {
 impl<A, B, GA: Gen<Item = A>, GB: Gen<Item = B>> Gen for GenPair<A, B, GA, GB> {
     type Item = (A, B);
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
-        let mut count = 0;
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count> {
+        let mut count: Count = 0;
         for lsize in 0..=size {
             let rsize = size - lsize;
-            let lcount = self.left.count(factory, lsize);
-            let rcount = self.right.count(factory, rsize);
-            count += lcount * rcount;
+            let lcount = self.left.count(factory, lsize)?;
+            let rcount = self.right.count(factory, rsize)?;
+            count = count.checked_add(lcount.checked_mul(rcount)?)?;
         }
-        count
+        Some(count)
     }
 
     fn get(&self, factory: &mut Factory, size: Size, mut index: Count) -> Option<(A, B)> {
         for lsize in 0..=size {
             let rsize = size - lsize;
-            let lcount = self.left.count(factory, lsize);
-            let rcount = self.right.count(factory, rsize);
-            let count = lcount * rcount;
+            let lcount = self.left.count(factory, lsize)?;
+            let rcount = self.right.count(factory, rsize)?;
+            let count = lcount.checked_mul(rcount)?;
             if index < count {
                 let lindex = index / rcount;
                 let rindex = index % rcount;
@@ -329,8 +329,8 @@ struct GenSeq<A, F: Fn(Size) -> A> {
 impl<A, F: Fn(Size) -> A> Gen for GenSeq<A, F> {
     type Item = A;
 
-    fn count(&self, _factory: &mut Factory, _size: Size) -> Count {
-        1
+    fn count(&self, _factory: &mut Factory, _size: Size) -> Option<Count> {
+        Some(1)
     }
 
     fn get(&self, _factory: &mut Factory, size: Size, index: Count) -> Option<A> {
@@ -355,7 +355,7 @@ struct GenMap<A, B, GA: Gen<Item = A>, F: Fn(A) -> B> {
 impl<A, B, GA: Gen<Item = A>, F: Fn(A) -> B> Gen for GenMap<A, B, GA, F> {
     type Item = B;
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count> {
         self.generator.count(factory, size)
     }
 
@@ -377,12 +377,14 @@ struct GenChoice<A, G1: Gen<Item = A>, G2: Gen<Item = A>> {
 impl<A, G1: Gen<Item = A>, G2: Gen<Item = A>> Gen for GenChoice<A, G1, G2> {
     type Item = A;
 
-    fn count(&self, factory: &mut Factory, size: Size) -> Count {
-        self.left.count(factory, size) + self.right.count(factory, size)
+    fn count(&self, factory: &mut Factory, size: Size) -> Option<Count> {
+        self.left
+            .count(factory, size)?
+            .checked_add(self.right.count(factory, size)?)
     }
 
     fn get(&self, factory: &mut Factory, size: Size, index: Count) -> Option<A> {
-        let left_count = self.left.count(factory, size);
+        let left_count = self.left.count(factory, size)?;
         if index < left_count {
             self.left.get(factory, size, index)
         } else {
@@ -405,7 +407,7 @@ struct IterAll<'a, T> {
 
 impl<'a, T: 'static> IterAll<'a, T> {
     fn new(factory: &'a mut Factory) -> IterAll<'a, T> {
-        let count = factory.count::<T>(0);
+        let count = factory.count::<T>(0).unwrap_or(0);
         IterAll {
             factory,
             size: 0,
@@ -423,7 +425,10 @@ impl<'a, T: 'static> Iterator for IterAll<'a, T> {
         while self.index >= self.count {
             self.size += 1;
             self.index = 0;
-            self.count = self.factory.count::<T>(self.size);
+            match self.factory.count::<T>(self.size) {
+                None => return None,
+                Some(count) => self.count = count,
+            };
         }
         let item = self.factory.get::<T>(self.size, self.index).unwrap();
         self.index += 1;
@@ -441,7 +446,7 @@ struct Iter<'a, T> {
 
 impl<'a, T: 'static> Iter<'a, T> {
     fn new(factory: &'a mut Factory, size: Size) -> Iter<'a, T> {
-        let count = factory.count::<T>(size);
+        let count = factory.count::<T>(size).unwrap_or(0);
         Iter {
             factory,
             size,
@@ -474,8 +479,12 @@ struct IterRandom<'a, T> {
 
 impl<'a, T: 'static> IterRandom<'a, T> {
     fn new(factory: &'a mut Factory, size: Size) -> IterRandom<'a, T> {
-        let count = factory.count::<T>(size);
-        let permutor = Permutor::new(count as u64);
+        let count = factory.count::<T>(size).unwrap_or(0);
+        let permutor = if count > (u64::MAX as Count) {
+            Permutor::new(0)
+        } else {
+            Permutor::new(count as u64)
+        };
         IterRandom {
             factory,
             permutor,
@@ -485,8 +494,12 @@ impl<'a, T: 'static> IterRandom<'a, T> {
     }
 
     fn from_seed(factory: &'a mut Factory, size: Size, seed: [u8; 32]) -> IterRandom<'a, T> {
-        let count = factory.count::<T>(size);
-        let permutor = Permutor::new_with_slice_key(count as u64, seed);
+        let count = factory.count::<T>(size).unwrap_or(0);
+        let permutor = if count > (u64::MAX as Count) {
+            Permutor::new(0)
+        } else {
+            Permutor::new_with_slice_key(count as u64, seed)
+        };
         IterRandom {
             factory,
             permutor,
@@ -555,11 +568,11 @@ mod testing {
     fn test_count_and_get() {
         let mut factory: Factory = tree_factory();
 
-        assert_eq!(factory.count::<Tree>(0), 1);
-        assert_eq!(factory.count::<Tree>(1), 1);
-        assert_eq!(factory.count::<Tree>(2), 2);
-        assert_eq!(factory.count::<Tree>(3), 5);
-        assert_eq!(factory.count::<Tree>(4), 14);
+        assert_eq!(factory.count::<Tree>(0), Some(1));
+        assert_eq!(factory.count::<Tree>(1), Some(1));
+        assert_eq!(factory.count::<Tree>(2), Some(2));
+        assert_eq!(factory.count::<Tree>(3), Some(5));
+        assert_eq!(factory.count::<Tree>(4), Some(14));
 
         assert_eq!(
             factory.get::<Tree>(3, 4),

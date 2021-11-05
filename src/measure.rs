@@ -19,11 +19,18 @@ pub struct Measure {
 }
 
 // INVARIANTS:
-// - Measures are sorted by increasing `(!eol, last)` and increasing `(overflow, height)`.
-// - If one measure has a smaller `(!eol, last)` and larger `(overflow, height)` than another in
-// the set, then it must be discarded.
+// - Measures in the `full` list have `is_full`, and those in `nonfull` do not.
+// - In both the `full` and `nonfull` lists, measures are sorted by increasing `last` and
+//   increasing `(overflow, height)`.
+// - If in one of the `full` or `nonfull` lists, one measure has a smaller `last` and larger
+//   `(overflow, height)` than another, then it must be discarded.
+// - If a `full` measure has a smaller `last` and larger `(overflow, height)` than a `nonfull`
+//   measure, then the full measure must be discarded.
 #[derive(Debug, Clone)]
-pub struct MeasureSet(Vec<Measure>);
+pub struct MeasureSet {
+    full: Vec<Measure>,
+    nonfull: Vec<Measure>,
+}
 
 impl Measure {
     pub fn single_line(len: Width, space: Space) -> Option<Measure> {
@@ -62,10 +69,6 @@ impl Measure {
         }
     }
 
-    fn key(self) -> (bool, Width) {
-        (!self.is_full, self.last)
-    }
-
     fn badness(self) -> (Overflow, Height) {
         (self.overflow, self.height)
     }
@@ -73,28 +76,83 @@ impl Measure {
 
 impl MeasureSet {
     pub fn new() -> MeasureSet {
-        MeasureSet(vec![])
+        MeasureSet {
+            full: vec![],
+            nonfull: vec![],
+        }
     }
 
     pub fn one_measure(measure: Measure) -> MeasureSet {
-        MeasureSet(vec![measure])
+        if measure.is_full {
+            MeasureSet {
+                full: vec![measure],
+                nonfull: vec![],
+            }
+        } else {
+            MeasureSet {
+                full: vec![],
+                nonfull: vec![measure],
+            }
+        }
     }
 
     pub fn best(self) -> Option<Measure> {
-        self.0.first().map(|m| *m)
+        let best = match (self.full.first().copied(), self.nonfull.first().copied()) {
+            (None, None) => None,
+            (Some(only), None) => Some(only),
+            (None, Some(only)) => Some(only),
+            (Some(x), Some(y)) => {
+                if x.badness() <= y.badness() {
+                    Some(x)
+                } else {
+                    Some(y)
+                }
+            }
+        };
+        #[cfg(feature = "logging")]
+        match best {
+            None => {
+                log!("Best of {} = None", self);
+            }
+            Some(best) => {
+                log!("Best of {} = {}", self, best);
+            }
+        }
+        best
     }
 
     pub fn union(self, other: MeasureSet) -> MeasureSet {
         log!("Merge: {}", self);
         log!("     & {}", other);
         let merge = MergeMeasures::new(self, other);
-        log!("     = {}", MeasureSet(merge.clone().collect::<Vec<_>>()));
-        MeasureSet(merge.collect::<Vec<_>>())
+        let mut full = vec![];
+        let mut nonfull = vec![];
+        for measure in merge {
+            if measure.is_full {
+                full.push(measure);
+            } else {
+                nonfull.push(measure);
+            }
+        }
+        log!(
+            "     = {}",
+            MeasureSet {
+                full: full.clone(),
+                nonfull: nonfull.clone(),
+            }
+        );
+        MeasureSet {
+            full: full.clone(),
+            nonfull: nonfull.clone(),
+        }
     }
 
     /// The function you map must preserve the MeasureSet invariants!
     pub fn map(mut self, f: impl Fn(Measure) -> Measure) -> MeasureSet {
-        for measure in &mut self.0 {
+        for measure in &mut self.full {
+            *measure = f(*measure);
+        }
+        for measure in &mut self.nonfull {
             *measure = f(*measure);
         }
         self
@@ -102,26 +160,44 @@ impl MeasureSet {
 
     pub fn contains(&self, measure: Measure) -> bool {
         // Could do binary search, not sure if it would be faster
-        self.0.contains(&measure)
+        if measure.is_full {
+            self.full.contains(&measure)
+        } else {
+            self.nonfull.contains(&measure)
+        }
     }
 }
 
 #[derive(Debug, Clone)]
-struct MergeMeasures {
+struct PartialMergeMeasures {
     left: Peekable<std::vec::IntoIter<Measure>>,
     right: Peekable<std::vec::IntoIter<Measure>>,
+}
+
+#[derive(Debug, Clone)]
+struct MergeMeasures {
+    full: Peekable<PartialMergeMeasures>,
+    nonfull: Peekable<PartialMergeMeasures>,
 }
 
 impl MergeMeasures {
     fn new(left: MeasureSet, right: MeasureSet) -> MergeMeasures {
         MergeMeasures {
-            left: left.0.into_iter().peekable(),
-            right: right.0.into_iter().peekable(),
+            full: PartialMergeMeasures {
+                left: left.full.into_iter().peekable(),
+                right: right.full.into_iter().peekable(),
+            }
+            .peekable(),
+            nonfull: PartialMergeMeasures {
+                left: left.nonfull.into_iter().peekable(),
+                right: right.nonfull.into_iter().peekable(),
+            }
+            .peekable(),
         }
     }
 }
 
-impl Iterator for MergeMeasures {
+impl Iterator for PartialMergeMeasures {
     type Item = Measure;
 
     fn next(&mut self) -> Option<Measure> {
@@ -133,17 +209,18 @@ impl Iterator for MergeMeasures {
                 (Some(_), None) => return self.left.next(),
                 (None, Some(_)) => return self.right.next(),
                 (Some(l), Some(r)) => {
-                    match (l.key().cmp(&r.key()), l.badness().cmp(&r.badness())) {
-                        // - If one measure has a smaller `(!eol, last)` and larger `(overflow,
-                        // height)` than another in the set, then it must be discarded.
+                    match (l.last.cmp(&r.last), l.badness().cmp(&r.badness())) {
+                        // - If in one of the `full` or `nonfull` lists, one measure has a smaller
+                        // `last` and larger `(overflow, height)` than another, then it must be
+                        // discarded.
                         (Greater | Equal, Less | Equal) => {
                             self.right.next();
                         }
                         (Less | Equal, Greater | Equal) => {
                             self.left.next();
                         }
-                        // - Measures are sorted by increasing `(!eol, last)` and increasing
-                        // `(overflow, height)`.
+                        // - In both the `full` and `nonfull` lists, measures are sorted by
+                        // increasing `last` and increasing `(overflow, height)`.
                         (Less, Less) => return self.left.next(),
                         (Greater, Greater) => return self.right.next(),
                     }
@@ -153,12 +230,44 @@ impl Iterator for MergeMeasures {
     }
 }
 
+impl Iterator for MergeMeasures {
+    type Item = Measure;
+
+    fn next(&mut self) -> Option<Measure> {
+        use std::cmp::Ordering::*;
+
+        loop {
+            match (self.nonfull.peek(), self.full.peek()) {
+                (None, None) => return None,
+                (Some(_), None) => return self.nonfull.next(),
+                (None, Some(_)) => return self.full.next(),
+                (Some(nonfull), Some(full)) => {
+                    match (
+                        full.last.cmp(&nonfull.last),
+                        full.badness().cmp(&nonfull.badness()),
+                    ) {
+                        // - If a `full` measure has a smaller `last` and larger `(overflow,
+                        // height)` than a `nonfull` measure, then the full measure must be
+                        // discarded.
+                        (Less | Equal, Greater | Equal) => {
+                            self.full.next();
+                        }
+                        // Otherwise, order by badness
+                        (_, Less | Equal) => return self.full.next(),
+                        (_, Greater) => return self.nonfull.next(),
+                    }
+                }
+            }
+        }
+    }
+}
+
 impl IntoIterator for MeasureSet {
     type Item = Measure;
-    type IntoIter = std::vec::IntoIter<Measure>;
+    type IntoIter = std::iter::Chain<std::vec::IntoIter<Measure>, std::vec::IntoIter<Measure>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.nonfull.into_iter().chain(self.full.into_iter())
     }
 }
 
@@ -175,7 +284,7 @@ impl fmt::Display for Measure {
 
 impl fmt::Display for MeasureSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut measures = self.0.iter();
+        let mut measures = self.full.iter().chain(self.nonfull.iter());
         if let Some(measure) = measures.next() {
             write!(f, "[")?;
             write!(f, "{}", measure)?;
