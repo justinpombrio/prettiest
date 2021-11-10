@@ -11,7 +11,12 @@ sets of size O(nw^2), and has to combine them.
 
 [TODO: mixing up runtime and set size above. Clear this up]
 
-Wadler runtime is more complex [FILL].
+_Wadler runtime._ `O(nw)` overall:
+
+- `fits` and `better` are `O(w)`
+- `be` and `best` are `O(nw)`, where `n` is the number of constructors called. (Note that the DOC as
+  a tree could be exponentially large in `n`.)
+- The magic is that `better x y` only has to examine `x`.
 
 ## Trees or DAGs?
 
