@@ -29,13 +29,13 @@ mod logging {
     #[macro_export]
     macro_rules! log {
         ($msg:literal) => {
-            let depth = $crate::util::LOGGING_DEPTH.with(|atom| {
+            let depth = $crate::infra::LOGGING_DEPTH.with(|atom| {
                 atom.load(std::sync::atomic::Ordering::SeqCst)
             });
             eprintln!(concat!("{:indent$}", $msg), "", indent = depth);
         };
         ($msg:literal, $($args:expr),*) => {
-            let depth = $crate::util::LOGGING_DEPTH.with(|atom| {
+            let depth = $crate::infra::LOGGING_DEPTH.with(|atom| {
                 atom.load(std::sync::atomic::Ordering::SeqCst)
             });
             eprintln!(concat!("{:indent$}", $msg), "", $($args),*, indent = depth);
@@ -45,7 +45,7 @@ mod logging {
     #[macro_export]
     macro_rules! log_span {
         () => {
-            let _guard = $crate::util::LoggingGuard::new();
+            let _guard = $crate::infra::LoggingGuard::new();
         };
     }
 }

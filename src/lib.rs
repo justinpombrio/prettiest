@@ -1,23 +1,17 @@
 mod doc;
 mod measure;
-mod oracle;
 mod printer;
-
-// TODO: temporary
-pub use doc::*;
-pub use measure::*;
-pub use oracle::*;
-pub use printer::*;
-/*
-mod printer;
-mod shapes;
+mod space;
 #[macro_use]
-mod util;
+mod infra;
 
+pub mod oracle;
 pub mod pretty_json;
 
-// TODO: temporary
-pub use node::*;
-pub use printer::*;
-pub use shapes::Badness;
-*/
+pub use doc::{Annotation, Doc, Height, Id, Notation, Width};
+pub use measure::Overflow;
+pub use printer::{pretty_print, PrettyResult};
+
+pub mod constructors {
+    pub use super::doc::{align, empty, eol, flat, indent, nl, spaces, text, text_owned};
+}

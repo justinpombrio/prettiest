@@ -1,0 +1,318 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+// TODO: remove memory leak using weak pointers
+// TODO: general improvements; this is clunky both in terms of code and performance
+
+type Size = u64;
+type Count = u128;
+type Iter<T> = Box<dyn Iterator<Item = T>>;
+
+pub trait Gen<T> {
+    fn count(&self, size: Size) -> Count;
+    fn get(&self, size: Size, index: Count) -> Option<T>;
+}
+
+pub struct Generator<T>(Rc<dyn Gen<T>>);
+
+impl<T> Generator<T> {
+    pub fn iter(&self, size: Size) -> impl Iterator<Item = T> {
+        GeneratorIter {
+            generator: self.clone(),
+            size,
+            index: 0,
+        }
+    }
+}
+
+struct GeneratorIter<T> {
+    generator: Generator<T>,
+    size: Size,
+    index: Count,
+}
+
+impl<T> Iterator for GeneratorIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        if let Some(value) = self.generator.get(self.size, self.index) {
+            self.index += 1;
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Clone for Generator<T> {
+    fn clone(&self) -> Self {
+        Generator(self.0.clone())
+    }
+}
+
+impl<T: 'static> Generator<T> {
+    fn map<U: 'static, F: Fn(T) -> U + 'static>(self, func: F) -> Generator<U> {
+        Generator(Rc::new(GenMap {
+            generator: self,
+            func,
+        }))
+    }
+}
+
+pub fn gen_pair<T, U>(left: Generator<T>, right: Generator<U>) -> Generator<(T, U)>
+where
+    T: 'static,
+    U: 'static,
+{
+    Generator(Rc::new(GenPair { left, right }))
+}
+
+pub fn gen_choice<T: 'static>(left: Generator<T>, right: Generator<T>) -> Generator<T> {
+    Generator(Rc::new(GenOr { left, right }))
+}
+
+pub fn gen_choices<T: 'static>(generators: &[Generator<T>]) -> Generator<T> {
+    let mut result = generators[0].clone();
+    for gen in &generators[1..] {
+        result = gen_choice(result, gen.clone());
+    }
+    result
+}
+
+pub fn gen_recursive<T: 'static>(init: impl Fn(Generator<T>) -> Generator<T>) -> Generator<T> {
+    let wrapper = GenRec {
+        cache: Rc::new(RefCell::new(HashMap::new())),
+        generator: Rc::new(RefCell::new(None)),
+    };
+    let wrapper_generator = Generator(Rc::new(wrapper.clone()));
+    let underlying_generator = init(wrapper_generator.clone());
+    *wrapper.generator.borrow_mut() = Some(underlying_generator);
+    wrapper_generator
+}
+
+pub fn gen_value<T: 'static + Clone>(value: T) -> Generator<T> {
+    Generator(Rc::new(GenValue(value)))
+}
+
+pub fn gen_set<T: 'static + Clone>(values: Vec<T>) -> Generator<T> {
+    Generator(Rc::new(GenSet(values)))
+}
+
+pub fn gen_sequence<T: 'static>(func: impl Fn(Size) -> T + 'static) -> Generator<T> {
+    Generator(Rc::new(GenSeq(Box::new(func))))
+}
+
+impl<T> Gen<T> for Generator<T> {
+    fn count(&self, size: Size) -> Count {
+        self.0.count(size)
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        self.0.get(size, index)
+    }
+}
+
+/*************
+ * Recursion *
+ *************/
+
+struct GenRec<T: 'static> {
+    cache: Rc<RefCell<HashMap<Size, Count>>>,
+    generator: Rc<RefCell<Option<Generator<T>>>>,
+}
+
+impl<T> Clone for GenRec<T> {
+    fn clone(&self) -> Self {
+        GenRec {
+            cache: self.cache.clone(),
+            generator: self.generator.clone(),
+        }
+    }
+}
+
+impl<T> Gen<T> for GenRec<T> {
+    fn count(&self, size: Size) -> Count {
+        if let Some(count) = self.cache.borrow().get(&size) {
+            return *count;
+        }
+        let count = self
+            .generator
+            .borrow()
+            .as_ref()
+            .expect("Recursive generator not initialized")
+            .count(size);
+        self.cache.borrow_mut().insert(size, count);
+        count
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        self.generator
+            .borrow()
+            .as_ref()
+            .expect("Recursive generator not initialized")
+            .get(size, index)
+    }
+}
+
+/**********
+ * Choice *
+ **********/
+
+struct GenOr<T: 'static> {
+    left: Generator<T>,
+    right: Generator<T>,
+}
+
+impl<T> Gen<T> for GenOr<T> {
+    fn count(&self, size: Size) -> Count {
+        self.left.count(size) + self.right.count(size)
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        if index < self.left.count(size) {
+            self.left.get(size, index)
+        } else {
+            self.right.get(size, index)
+        }
+    }
+}
+
+struct GenOrIter<T> {
+    left: Iter<T>,
+    right: Iter<T>,
+}
+
+impl<T> Iterator for GenOrIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        if let Some(item) = self.left.next() {
+            Some(item)
+        } else {
+            self.right.next()
+        }
+    }
+}
+
+/*********
+ * Pairs *
+ *********/
+
+struct GenPair<T: 'static, U: 'static> {
+    left: Generator<T>,
+    right: Generator<U>,
+}
+
+impl<T, U> Gen<(T, U)> for GenPair<T, U> {
+    fn count(&self, size: Size) -> Count {
+        let mut count: Count = 0;
+        for i in 0..size {
+            let j = size - i - 1;
+            count += self.left.count(i) * self.right.count(j);
+        }
+        count
+    }
+
+    fn get(&self, size: Size, mut index: Count) -> Option<(T, U)> {
+        for left_size in 0..size {
+            let right_size = size - left_size - 1;
+            let left_count = self.left.count(left_size);
+            let right_count = self.right.count(right_size);
+            let count = left_count * right_count;
+            if index < count {
+                let left_index = index / right_count;
+                let right_index = index % right_count;
+                let left_val = self.left.get(left_size, left_index)?;
+                let right_val = self.right.get(right_size, right_index)?;
+                return Some((left_val, right_val));
+            } else {
+                index -= count;
+            }
+        }
+        None
+    }
+}
+
+/***********
+ * Mapping *
+ ***********/
+
+struct GenMap<T: 'static, U: 'static, F: Fn(T) -> U> {
+    generator: Generator<T>,
+    func: F,
+}
+
+impl<T, U, F: Fn(T) -> U> Gen<U> for GenMap<T, U, F> {
+    fn count(&self, size: Size) -> Count {
+        self.generator.count(size)
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<U> {
+        self.generator.get(size, index).map(&self.func)
+    }
+}
+
+/**********
+ * Values *
+ **********/
+
+struct GenValue<T: Clone>(T);
+
+impl<T: 'static + Clone> Gen<T> for GenValue<T> {
+    fn count(&self, size: Size) -> Count {
+        if size == 0 {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        if size == 0 && index == 0 {
+            Some(self.0.clone())
+        } else {
+            None
+        }
+    }
+}
+
+struct GenSet<T: Clone>(Vec<T>);
+
+impl<T: 'static + Clone> Gen<T> for GenSet<T> {
+    fn count(&self, size: Size) -> Count {
+        if size == 0 {
+            self.0.len() as Count
+        } else {
+            0
+        }
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        if size == 0 {
+            self.0.get(index as usize).cloned()
+        } else {
+            None
+        }
+    }
+}
+
+/*************
+ * Sequences *
+ *************/
+
+struct GenSeq<T>(Box<dyn Fn(Size) -> T>);
+
+impl<T> Gen<T> for GenSeq<T> {
+    fn count(&self, _size: Size) -> Count {
+        1
+    }
+
+    fn get(&self, size: Size, index: Count) -> Option<T> {
+        if index == 0 {
+            Some(self.0(size))
+        } else {
+            None
+        }
+    }
+}

@@ -1,12 +1,13 @@
-mod common;
-
-use common::{assert_pretty, assert_pretty_multiline, assert_ugly, assert_ugly_multiline};
-use prettiest::{align, flat, nl, spaces, text, Badness, Node};
+use super::common::{
+    assert_invalid, assert_pretty, assert_pretty_multiline, assert_ugly, assert_ugly_multiline,
+};
+use prettiest::constructors::{align, eol, flat, nl, spaces, text};
+use prettiest::Doc;
 
 #[test]
 fn test_text() {
     let doc = text("Hello, world");
-    assert_ugly(&doc, 10, "Hello, world", Badness::overflow(2));
+    assert_ugly(&doc, 10, "Hello, world", 2);
     assert_pretty(&doc, 12, "Hello, world");
     assert_pretty(&doc, 20, "Hello, world");
 }
@@ -14,19 +15,19 @@ fn test_text() {
 #[test]
 fn test_spaces() {
     let doc = spaces(3);
-    assert_ugly(&doc, 2, "   ", Badness::overflow(1));
+    assert_ugly(&doc, 2, "   ", 1);
     assert_pretty(&doc, 3, "   ");
 }
 
 #[test]
 fn test_concat() {
     let doc = text("Hello, ") + text("world");
-    assert_ugly(&doc, 11, "Hello, world", Badness::overflow(1));
+    assert_ugly(&doc, 11, "Hello, world", 1);
     assert_pretty(&doc, 12, "Hello, world");
     assert_pretty(&doc, 14, "Hello, world");
 
     let doc = text("Hello,") + spaces(3) + text("world");
-    assert_ugly(&doc, 13, "Hello,   world", Badness::overflow(1));
+    assert_ugly(&doc, 13, "Hello,   world", 1);
     assert_pretty(&doc, 14, "Hello,   world");
     assert_pretty(&doc, 15, "Hello,   world");
 }
@@ -50,17 +51,17 @@ fn test_newline() {
 hi
 there
 Jill";
-    assert_ugly_multiline(&doc, 4, expected, Badness::overflow(1));
+    assert_ugly_multiline(&doc, 4, expected, 1);
     assert_pretty_multiline(&doc, 80, expected);
 }
 
 #[test]
 fn test_flat() {
     let doc = flat(nl());
-    assert_ugly(&doc, 10, "\n", Badness::violations(1));
+    assert_invalid(&doc, 10);
 
     let doc = flat(nl()) | text("overflow");
-    assert_ugly(&doc, 5, "overflow", Badness::overflow(3));
+    assert_ugly(&doc, 5, "overflow", 3);
 
     let doc = flat(nl()) | text("good") | text("overflow");
     assert_pretty(&doc, 5, "good");
@@ -96,7 +97,13 @@ c";
     assert_pretty_multiline(&doc, 3, expected);
 }
 
-pub fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Node {
+#[test]
+fn test_eol() {
+    let doc = eol() + text("a");
+    assert_invalid(&doc, 80);
+}
+
+pub fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Doc<()> {
     let mut iter = words.into_iter();
     let first_word = iter.next().unwrap();
 
@@ -180,5 +187,5 @@ over
 the
 lazy
 dog";
-    assert_ugly_multiline(&doc, 4, expected, Badness::overflow(3));
+    assert_ugly_multiline(&doc, 4, expected, 3);
 }

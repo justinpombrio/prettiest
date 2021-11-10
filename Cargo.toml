@@ -11,3 +11,6 @@ rand = "*"
 
 [features]
 logging = []
+
+[dev-dependencies]
+permutation_iterator = "0.1.*"
