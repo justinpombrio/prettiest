@@ -3,7 +3,7 @@ use super::common::{doc_factory, Size};
 use prettiest::{Doc, Width};
 use std::ops::Range;
 
-const SAMPLE_COUNT: usize = 1000;
+const SAMPLE_COUNT: usize = 200;
 static WIDTHS: &[Width] = &[0, 1, 2, 4, 7, 10, 15];
 const SIZES: Range<Size> = 4..20;
 
