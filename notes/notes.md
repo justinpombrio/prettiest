@@ -1,5 +1,8 @@
 ## Runtime
 
+TODO: Need to pin down what `n` is in our big-O calculations. Maybe it's `max(DAG-size,
+output-size)`? Or maybe it's DAG-size, and we have this restriction? `size(a + b) = size(a) + size(b)`
+
 Runtime for Bernardy-style printers is based on shape:
 
 - Rectangles is O(nw), where n is the size of the doc and w is the max width
@@ -11,12 +14,47 @@ sets of size O(nw^2), and has to combine them.
 
 [TODO: mixing up runtime and set size above. Clear this up]
 
-_Wadler runtime._ `O(nw)` overall:
+### Wadler Runtime
 
-- `fits` and `better` are `O(w)`
-- `be` and `best` are `O(nw)`, where `n` is the number of constructors called. (Note that the DOC as
-  a tree could be exponentially large in `n`.)
-- The magic is that `better x y` only has to examine `x`.
+The worst case runtime of Wadler's printer is `O(nw)`, `O(n^2)`, or `O(2^n)`, depending on how
+unfair you want to be. Let's discuss these in reverse order.
+
+For details, see `prettier.hs` and `run_prettier.sh`.
+
+Strictly speaking, using the measurement by which our printer runs in worst case time `O(nw^k)`
+[FILL k], Wadler's printer runs in worst case time `O(2^n)`. Here is a document whose output size is
+0, whose DAG size is `n`, and whose runtime is `O(2^n)`:
+
+    -- Runtime exponential in n, when printed at any size
+    huge :: Int -> DOC
+    huge 0 = nil
+    huge n = let d = huge (n - 1) in d <> d
+
+(`<>` means concat.) This is very unfair, though. It exploits the fact that Wadler's printer expands
+all of the concatenations, under the very reasonable assumption that those concatenations will
+contain content.
+
+Our next most unfair document does contain content, but all of that content comes _after_ groups.
+This forces his printer to open `n` groups before it gets to see the first piece of content (a
+newline):
+
+    -- Runtime quadratic in n, when printed at any size
+    antagonistic :: Int -> DOC
+    antagonistic 0 = text "line"
+    antagonistic n = group (antagonistic (n - 1) <> line <> text "line")
+
+This is perhaps an unrealistically antagonistic document: it would be reasonable to assume that most
+groups contained some content _preceding_ any nested group.
+
+Under that assumption, Wadler's printer runs in `O(nw)` time:
+
+    -- Runtime quadratic in n, when printed at size n
+    nestedLists :: Int -> DOC
+    nestedLists 0 = text "[]"
+    nestedLists n = group (text "[" <> (nestedLists (n - 1)) <> text "]")
+
+Why do I say `O(nw)` when the above example is quadratic? Say `n = kw`. Then you can construct `k`
+nested lists, each with runtime quadratic in `w`, giving a total runtime of `O(kw^2) = O(nw)`.
 
 ## Trees or DAGs?
 

@@ -12,3 +12,7 @@ Cargo.lock
 refn_impl/pretty.hi
 refn_impl/pretty.o
 refn_impl/pretty
+
+notes/prettier.hi
+notes/prettier.o
+notes/prettier
