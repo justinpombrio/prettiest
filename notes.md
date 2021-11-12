@@ -39,12 +39,13 @@ rules:
 
 Yelland (if I understood correctly) applied these rewrite rules to DAGs. But they can expand a DAG
 exponenentially, so I don't think there's any point to applying it to DAG-shaped docs instead of
-tree-shaped docs. (Well, it's better in the case it doesn't explode exponentially.) A bad case:
+tree-shaped docs. (Well, it's better in the case it doesn't explode exponentially.) A bad case, that
+has to explode exponentially to get into normal form:
 
-    a = b | b + "a"
-    b = c | c + "b"
-    c = d | d + "c"
-    d = "d"
+    a = "A" + b + "A" | b
+    b = "B" + c + "B" | c
+    c = "C" + d + "C" | d
+    d = "D" | empty
 
 This run in exponential time for Yelland. And also for Wadler:
 
