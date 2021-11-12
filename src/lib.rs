@@ -5,6 +5,11 @@ mod space;
 #[macro_use]
 mod infra;
 
+// TODO: Possible optimizations:
+// - Smart constructors
+// - Flat as a smart constructor
+// - Set width-limit=first-limit=0 on overflowing aligns
+
 pub mod oracle;
 pub mod pretty_json;
 
