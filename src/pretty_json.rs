@@ -78,7 +78,7 @@ pub fn array(elems: Vec<Doc<()>>) -> Doc<()> {
 /// ```
 pub fn object<'a>(pairs: Vec<(&'a str, Doc<()>)>) -> Doc<()> {
     fn print_pair(key: &str, val: Doc<()>) -> Doc<()> {
-        string(key) + text(":") + (text(" ") | nl() + text("    ")) + align(val)
+        string(key) + text(":") + (text(" ") | nl() + spaces(4)) + align(val)
     }
 
     if pairs.len() == 0 {

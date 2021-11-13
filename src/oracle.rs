@@ -32,6 +32,7 @@ pub fn verify_with_oracle<A: Annotation>(
         .into_iter()
         .map(|lay| lay.into_pretty_result(width))
         .collect::<Vec<_>>();
+    println!("valid results:\n{:#?}", valid_results);
 
     match &result {
         PrettyResult::Invalid => {
@@ -116,7 +117,7 @@ impl Layout {
             Flat(doc) => self.layouts(doc, None),
             Align(doc) => {
                 let ind = self.lines.last().unwrap().chars().count();
-                self.layouts(doc, indent.map(|i| i + ind))
+                self.layouts(doc, indent.map(|_| ind))
             }
             Concat(doc1, doc2) => self
                 .layouts(doc1, indent)

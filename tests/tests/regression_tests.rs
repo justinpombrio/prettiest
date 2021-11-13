@@ -1,4 +1,4 @@
-use super::common::{assert_invalid, assert_pretty, assert_ugly};
+use super::common::{assert_invalid, assert_pretty, assert_pretty_multiline, assert_ugly};
 use prettiest::constructors::{align, empty, eol, nl, text};
 
 #[test]
@@ -59,4 +59,13 @@ fn regression_9() {
 fn regression_10() {
     let doc = empty() | (nl() + eol());
     assert_pretty(&doc, 0, "");
+}
+
+#[test]
+fn regression_11() {
+    let doc = text("===>") + align(align(align(text("|") + nl() + text("|"))));
+    let expected = r#"
+===>|
+    |"#;
+    assert_pretty_multiline(&doc, 15, expected);
 }

@@ -31,8 +31,9 @@ impl Space {
         self
     }
 
-    pub fn align(self) -> Space {
-        self.indent(self.width - self.first)
+    pub fn align(mut self) -> Space {
+        self.indent = self.indent.map(|_| self.width - self.first);
+        self
     }
 
     pub fn flatten(mut self) -> Space {

@@ -2,7 +2,6 @@ use super::common::{
     assert_pretty, assert_pretty_multiline, assert_ugly, assert_ugly_multiline, assert_unknown,
 };
 use prettiest::pretty_json::{array, bool, null, number, object, string};
-use prettiest::Doc;
 
 #[test]
 fn test_json_basics() {
@@ -40,6 +39,25 @@ fn test_json_basics() {
 }
 
 #[test]
+fn test_json_object() {
+    let doc = object(vec![("this_is_a_very_long_key", number(17.0))]);
+    let expected = r#"
+{ "this_is_a_very_long_key":
+      17 }"#;
+    assert_pretty_multiline(&doc, 30, expected);
+
+    let doc = object(vec![(
+        "kinda_long",
+        object(vec![("kinda_long", string("kinda_long"))]),
+    )]);
+    let expected = r#"
+{ "kinda_long":
+      { "kinda_long":
+            "kinda_long" } }"#;
+    assert_pretty_multiline(&doc, 30, expected);
+}
+
+#[test]
 fn test_json_wrap() {
     let digits = array(vec![
         number(0.0),
@@ -61,5 +79,18 @@ fn test_json_wrap() {
     let expected = r#"
 { "digits": [0, 1, 2, 3, 4,
              5, 6, 7, 8, 9] }"#;
-    assert_pretty_multiline(&doc, 30, expected);
+    assert_pretty_multiline(&doc, 29, expected);
+
+    let expected = r#"
+{ "digits":
+      [0, 1, 2, 3, 4,
+       5, 6, 7, 8, 9] }"#;
+    assert_pretty_multiline(&doc, 23, expected);
+
+    let expected = r#"
+{ "digits":
+      [0, 1, 2, 3,
+       4, 5, 6, 7,
+       8, 9] }"#;
+    assert_pretty_multiline(&doc, 20, expected);
 }
