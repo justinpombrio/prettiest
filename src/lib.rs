@@ -20,3 +20,13 @@ pub use printer::{pretty_print, PrettyResult};
 pub mod constructors {
     pub use super::doc::{align, empty, eol, flat, indent, nl, spaces, text, text_owned};
 }
+
+#[macro_export]
+macro_rules! span {
+    ($name:expr) => {
+        #[cfg(feature = "flamegraph")]
+        no_nonsense_flamegraphs::span!($name);
+        #[cfg(not(feature = "flamegraph"))]
+        ();
+    };
+}

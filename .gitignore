@@ -16,3 +16,5 @@ refn_impl/pretty
 notes/prettier.hi
 notes/prettier.o
 notes/prettier
+
+flamegraph.svg

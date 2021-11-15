@@ -1,6 +1,7 @@
 use crate::doc::{Annotation, Doc, Id, Notation, Width};
 use crate::measure::{Measure, MeasureSet, Overflow};
 use crate::space::Space;
+use crate::span;
 use crate::{log, log_span};
 use std::collections::HashMap;
 
@@ -14,17 +15,27 @@ pub enum PrettyResult {
 }
 
 pub fn pretty_print<A: Annotation>(doc: &Doc<A>, width: Width) -> PrettyResult {
+    span!("pretty_print");
     let space = Space::new_rectangle(width);
 
     let mut printer = Printer::new();
-    let measures = printer.measure(doc, space);
-    let best_measure = match measures.best() {
-        None => return PrettyResult::Invalid,
-        Some(measure) => measure,
+    let measures = {
+        span!("measure");
+        printer.measure(doc, space)
+    };
+    let best_measure = {
+        span!("best_measure");
+        match measures.best() {
+            None => return PrettyResult::Invalid,
+            Some(measure) => measure,
+        }
     };
     let overflow = best_measure.overflow;
 
-    let lines = printer.render(doc, space, best_measure).0;
+    let lines = {
+        span!("render");
+        printer.render(doc, space, best_measure).0
+    };
     PrettyResult::Valid { lines, overflow }
 }
 
@@ -56,7 +67,10 @@ impl Printer {
                 None => MeasureSet::new(),
             },
             Text(text) => {
-                let len = text.chars().count() as Width;
+                let len = {
+                    span!("text_len");
+                    text.chars().count() as Width
+                };
                 match Measure::single_line(len, space) {
                     Some(measure) => MeasureSet::one_measure(measure),
                     None => MeasureSet::new(),
@@ -96,7 +110,13 @@ impl Printer {
             Annotate(_, doc) => self.measure(doc, space),
         };
 
-        log!("Measure ({}) {} = {}", doc, space, measures);
+        log!(
+            "Measure ({}){} {} = {}",
+            doc,
+            doc.id() % 1000,
+            space,
+            measures
+        );
         self.cache.insert((doc.id(), space), measures.clone());
         measures
     }

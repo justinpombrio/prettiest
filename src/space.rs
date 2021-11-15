@@ -1,5 +1,6 @@
 use crate::doc::Width;
 use crate::measure::Measure;
+use crate::span;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,6 +19,8 @@ pub struct Space {
 
 impl Space {
     pub fn new_rectangle(width: Width) -> Space {
+        span!("S::new_rectangle");
+
         Space {
             width,
             first: width,
@@ -27,21 +30,29 @@ impl Space {
     }
 
     pub fn indent(mut self, i: Width) -> Space {
+        span!("S::indent");
+
         self.indent = self.indent.map(|ind| ind + i);
         self
     }
 
     pub fn align(mut self) -> Space {
+        span!("S::align");
+
         self.indent = self.indent.map(|_| self.width - self.first);
         self
     }
 
     pub fn flatten(mut self) -> Space {
+        span!("S::flatten");
+
         self.indent = None;
         self
     }
 
     pub fn consume(self, measure: Measure) -> Space {
+        span!("S::consume");
+
         if self.indent.is_none() {
             assert_eq!(measure.height, 0, "too tall to fit");
         }

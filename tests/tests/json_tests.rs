@@ -2,6 +2,7 @@ use super::common::{
     assert_pretty, assert_pretty_multiline, assert_ugly, assert_ugly_multiline, assert_unknown,
 };
 use prettiest::pretty_json::{array, bool, null, number, object, string};
+use prettiest::Doc;
 
 #[test]
 fn test_json_basics() {

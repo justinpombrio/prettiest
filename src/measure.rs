@@ -1,6 +1,7 @@
 use crate::doc::{Height, Width};
 use crate::log;
 use crate::space::Space;
+use crate::span;
 use std::fmt;
 use std::iter::Peekable;
 
@@ -34,6 +35,8 @@ pub struct MeasureSet {
 
 impl Measure {
     pub fn single_line(len: Width, space: Space) -> Option<Measure> {
+        span!("M::single_line");
+
         if space.is_full && len > 0 {
             return None;
         }
@@ -52,6 +55,8 @@ impl Measure {
     }
 
     pub fn newline(indent: Width, width: Width) -> Measure {
+        span!("M::newline");
+
         Measure {
             last: width - indent,
             height: 1,
@@ -61,6 +66,8 @@ impl Measure {
     }
 
     pub fn concat(self, other: Measure) -> Measure {
+        span!("M::concat");
+
         Measure {
             last: other.last,
             height: self.height + other.height,
@@ -76,6 +83,8 @@ impl Measure {
 
 impl MeasureSet {
     pub fn new() -> MeasureSet {
+        span!("MS::new");
+
         MeasureSet {
             full: vec![],
             nonfull: vec![],
@@ -83,6 +92,8 @@ impl MeasureSet {
     }
 
     pub fn one_measure(measure: Measure) -> MeasureSet {
+        span!("MS::one_measure");
+
         if measure.is_full {
             MeasureSet {
                 full: vec![measure],
@@ -97,6 +108,8 @@ impl MeasureSet {
     }
 
     pub fn best(self) -> Option<Measure> {
+        span!("MS::best");
+
         let best = match (self.full.first().copied(), self.nonfull.first().copied()) {
             (None, None) => None,
             (Some(only), None) => Some(only),
@@ -122,8 +135,10 @@ impl MeasureSet {
     }
 
     pub fn union(self, other: MeasureSet) -> MeasureSet {
+        span!("MS::union");
         log!("Merge: {}", self);
         log!("     & {}", other);
+
         let merge = MergeMeasures::new(self, other);
         let mut full = vec![];
         let mut nonfull = vec![];
@@ -149,6 +164,8 @@ impl MeasureSet {
 
     /// The function you map must preserve the MeasureSet invariants!
     pub fn map(mut self, f: impl Fn(Measure) -> Measure) -> MeasureSet {
+        span!("MS::map");
+
         for measure in &mut self.full {
             *measure = f(*measure);
         }
@@ -159,6 +176,8 @@ impl MeasureSet {
     }
 
     pub fn contains(&self, measure: Measure) -> bool {
+        span!("MS::contains");
+
         // Could do binary search, not sure if it would be faster
         if measure.is_full {
             self.full.contains(&measure)

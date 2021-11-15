@@ -1,4 +1,5 @@
 use rand::random;
+use std::collections::HashSet;
 use std::fmt;
 use std::ops::{Add, BitOr, BitXor, Shr};
 use std::rc::Rc;
@@ -59,6 +60,30 @@ impl<A: Annotation> Doc<A> {
 
     pub fn notation(&self) -> &Notation<A> {
         &self.notation
+    }
+
+    pub fn size(&self) -> usize {
+        let mut set = HashSet::new();
+        self.insert_id(&mut set);
+        set.len()
+    }
+
+    fn insert_id(&self, set: &mut HashSet<Id>) {
+        use Notation::*;
+
+        if set.contains(&self.id) {
+            return;
+        }
+
+        match &*self.notation {
+            Empty | Newline | EndOfLine | Spaces(_) | Text(_) => (),
+            Indent(_, doc) | Flat(doc) | Align(doc) | Annotate(_, doc) => doc.insert_id(set),
+            Concat(x, y) | Choice(x, y) => {
+                x.insert_id(set);
+                y.insert_id(set);
+            }
+        }
+        set.insert(self.id);
     }
 }
 

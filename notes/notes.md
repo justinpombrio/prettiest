@@ -1,3 +1,7 @@
+## Our Design
+
+Why choice? For synchronizing choices, e.g. "all one one line, or all on separate lines".
+
 ## Runtime
 
 TODO: Need to pin down what `n` is in our big-O calculations. Maybe it's `max(DAG-size,
