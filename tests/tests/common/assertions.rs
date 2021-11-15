@@ -45,6 +45,7 @@ pub fn assert_invalid(doc: &Doc<()>, width: Width) {
     assert_generic(doc, width, Some(PrettyResult::Invalid));
 }
 
+#[allow(unused)]
 #[track_caller]
 pub fn assert_unknown(doc: &Doc<()>, width: Width) {
     assert_generic(doc, width, None)

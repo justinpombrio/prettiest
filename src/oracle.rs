@@ -1,6 +1,7 @@
 //! Exponentially slow reference implementation of pretty printing
 
 use crate::doc::{Annotation, Doc, Notation, Width};
+use crate::log;
 use crate::measure::Overflow;
 use crate::printer::PrettyResult;
 
@@ -32,7 +33,7 @@ pub fn verify_with_oracle<A: Annotation>(
         .into_iter()
         .map(|lay| lay.into_pretty_result(width))
         .collect::<Vec<_>>();
-    println!("valid results:\n{:#?}", valid_results);
+    log!("valid results:\n{:#?}", valid_results);
 
     match &result {
         PrettyResult::Invalid => {

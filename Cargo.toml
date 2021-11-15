@@ -11,6 +11,7 @@ rand = "*"
 
 [features]
 logging = []
+oracle = []
 
 [dev-dependencies]
 permutation_iterator = "0.1.*"
