@@ -13,6 +13,7 @@ no-nonsense-flamegraphs = { git = "https://github.com/justinpombrio/no-nonsense-
 [features]
 logging = []
 flamegraph = ["no-nonsense-flamegraphs"]
+oracle = []
 
 [dev-dependencies]
 permutation_iterator = "0.1.*"

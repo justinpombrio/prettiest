@@ -78,7 +78,11 @@ pub fn array(elems: Vec<Doc<()>>) -> Doc<()> {
 /// ```
 pub fn object<'a>(pairs: Vec<(&'a str, Doc<()>)>) -> Doc<()> {
     fn print_pair(key: &str, val: Doc<()>) -> Doc<()> {
-        string(key) + text(":") + (text(" ") | nl() + spaces(4)) + align(val)
+        string(key) + text(":") + (text(" ") | nl() + spaces(4)) + val
+    }
+
+    fn print_pair_aligned(key: &str, val: Doc<()>) -> Doc<()> {
+        string(key) + text(": ") + align(val)
     }
 
     if pairs.len() == 0 {
@@ -98,9 +102,9 @@ pub fn object<'a>(pairs: Vec<(&'a str, Doc<()>)>) -> Doc<()> {
     let aligned = {
         let mut pairs = pairs.clone().into_iter();
         let (key1, val1) = pairs.next().unwrap();
-        let mut list = print_pair(key1, val1);
+        let mut list = print_pair_aligned(key1, val1);
         for (key, val) in pairs {
-            list = list + text(",") + nl() + print_pair(key, val);
+            list = list + text(",") + nl() + print_pair_aligned(key, val);
         }
         text("{ ") + align(list) + text(" }")
     };
