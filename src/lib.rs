@@ -12,6 +12,7 @@ mod infra;
 
 pub mod oracle;
 pub mod pretty_json;
+pub mod pretty_xml;
 
 pub use doc::{Annotation, Doc, Height, Id, Notation, Width};
 pub use measure::Overflow;

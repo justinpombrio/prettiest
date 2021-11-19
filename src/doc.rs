@@ -120,6 +120,10 @@ pub fn text<A: Annotation>(s: &str) -> Doc<A> {
     text_owned(s.to_owned())
 }
 
+pub fn space<A: Annotation>() -> Doc<A> {
+    Doc::new(Notation::Spaces(1))
+}
+
 pub fn spaces<A: Annotation>(width: Width) -> Doc<A> {
     Doc::new(Notation::Spaces(width))
 }
@@ -142,6 +146,10 @@ pub fn flat<A: Annotation>(node: Doc<A>) -> Doc<A> {
 
 pub fn align<A: Annotation>(node: Doc<A>) -> Doc<A> {
     Doc::new(Notation::Align(node))
+}
+
+pub fn nested<A: Annotation>(ind: Width, node: Doc<A>) -> Doc<A> {
+    indent(ind, nl() + node) + nl()
 }
 
 impl<A: Annotation> Add<Doc<A>> for Doc<A> {
