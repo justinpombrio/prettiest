@@ -18,6 +18,8 @@ sets of size O(nw^2), and has to combine them.
 
 [TODO: mixing up runtime and set size above. Clear this up]
 
+Runtime for _our_ printer is O(n^k)! Trouble is, there's no guarantee you'll ever see a newline :-).
+
 ### Wadler Runtime
 
 The worst case runtime of Wadler's printer is `O(nw)`, `O(n^2)`, or `O(2^n)`, depending on how
