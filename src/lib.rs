@@ -14,7 +14,7 @@ pub mod oracle;
 pub mod pretty_json;
 pub mod pretty_xml;
 
-pub use doc::{Annotation, Doc, Height, Id, Notation, Width};
+pub use doc::{Doc, Height, Id, Notation, Width};
 pub use measure::Overflow;
 pub use printer::{pretty_print, PrettyResult};
 

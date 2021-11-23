@@ -1,10 +1,10 @@
 use crate::doc::{align, flat, nl, spaces, text, text_owned, Doc};
 
-pub fn null() -> Doc<()> {
+pub fn null() -> Doc {
     text("null")
 }
 
-pub fn bool(b: bool) -> Doc<()> {
+pub fn bool(b: bool) -> Doc {
     if b {
         text("true")
     } else {
@@ -12,7 +12,7 @@ pub fn bool(b: bool) -> Doc<()> {
     }
 }
 
-pub fn string(s: &str) -> Doc<()> {
+pub fn string(s: &str) -> Doc {
     let mut string = "\"".to_owned();
     for ch in s.escape_default() {
         string.push(ch);
@@ -21,7 +21,7 @@ pub fn string(s: &str) -> Doc<()> {
     text_owned(string)
 }
 
-pub fn number(n: f32) -> Doc<()> {
+pub fn number(n: f32) -> Doc {
     text_owned(format!("{}", n))
 }
 
@@ -33,7 +33,7 @@ pub fn number(n: f32) -> Doc<()> {
 ///      elem5_which_is_longer, elem6,
 ///      elem7]
 /// ```
-pub fn array(elems: Vec<Doc<()>>) -> Doc<()> {
+pub fn array(elems: Vec<Doc>) -> Doc {
     let mut elems = elems.into_iter();
     if let Some(first_elem) = elems.next() {
         let mut list = first_elem;
@@ -76,12 +76,12 @@ pub fn array(elems: Vec<Doc<()>>) -> Doc<()> {
 /// { "worlds-longest-key-yeah-its-pretty-long":
 ///       "value's shorter though" }
 /// ```
-pub fn object<'a>(pairs: Vec<(&'a str, Doc<()>)>) -> Doc<()> {
-    fn print_pair(key: &str, val: Doc<()>) -> Doc<()> {
+pub fn object<'a>(pairs: Vec<(&'a str, Doc)>) -> Doc {
+    fn print_pair(key: &str, val: Doc) -> Doc {
         string(key) + text(":") + (text(" ") | nl() + spaces(4)) + val
     }
 
-    fn print_pair_aligned(key: &str, val: Doc<()>) -> Doc<()> {
+    fn print_pair_aligned(key: &str, val: Doc) -> Doc {
         string(key) + text(": ") + align(val)
     }
 

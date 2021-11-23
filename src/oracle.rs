@@ -1,6 +1,6 @@
 //! Exponentially slow reference implementation of pretty printing
 
-use crate::doc::{Annotation, Doc, Notation, Width};
+use crate::doc::{Doc, Notation, Width};
 use crate::log;
 use crate::measure::Overflow;
 use crate::printer::PrettyResult;
@@ -11,8 +11,8 @@ struct Layout {
     is_full: bool,
 }
 
-pub fn verify_with_oracle<A: Annotation>(
-    doc: &Doc<A>,
+pub fn verify_with_oracle(
+    doc: &Doc,
     width: Width,
     result: &PrettyResult,
 ) -> Result<(), PrettyResult> {
@@ -83,7 +83,7 @@ impl Layout {
         }
     }
 
-    fn layouts<A: Annotation>(mut self, doc: &Doc<A>, indent: Option<usize>) -> Vec<Layout> {
+    fn layouts(mut self, doc: &Doc, indent: Option<usize>) -> Vec<Layout> {
         use Notation::*;
 
         match doc.notation() {
@@ -130,7 +130,6 @@ impl Layout {
                 layouts.append(&mut self.layouts(doc2, indent));
                 layouts
             }
-            Annotate(_, doc) => self.layouts(doc, indent),
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::doc::{Annotation, Doc, Id, Notation, Width};
+use crate::doc::{Doc, Id, Notation, Width};
 use crate::measure::{Measure, MeasureSet, Overflow};
 use crate::space::Space;
 use crate::span;
@@ -14,7 +14,7 @@ pub enum PrettyResult {
     },
 }
 
-pub fn pretty_print<A: Annotation>(doc: &Doc<A>, width: Width) -> PrettyResult {
+pub fn pretty_print(doc: &Doc, width: Width) -> PrettyResult {
     span!("pretty_print");
     let space = Space::new_rectangle(width);
 
@@ -50,7 +50,7 @@ impl Printer {
         }
     }
 
-    fn measure<A: Annotation>(&mut self, doc: &Doc<A>, space: Space) -> MeasureSet {
+    fn measure(&mut self, doc: &Doc, space: Space) -> MeasureSet {
         use Notation::*;
 
         log_span!();
@@ -107,7 +107,6 @@ impl Printer {
                 let ms2 = self.measure(doc2, space);
                 ms1.union(ms2)
             }
-            Annotate(_, doc) => self.measure(doc, space),
         };
 
         log!(
@@ -121,7 +120,7 @@ impl Printer {
         measures
     }
 
-    fn render<A: Annotation>(&mut self, doc: &Doc<A>, space: Space, measure: Measure) -> Lines {
+    fn render(&mut self, doc: &Doc, space: Space, measure: Measure) -> Lines {
         use Notation::*;
 
         // INVARIANT: Must match the behavior of `measure`
@@ -158,8 +157,6 @@ impl Printer {
                 }
                 panic!("render: concat failed to find appropriate measure");
             }
-            // TODO
-            Annotate(_, doc) => self.render(doc, space, measure),
         }
     }
 }

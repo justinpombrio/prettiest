@@ -4,8 +4,6 @@ use std::fmt;
 use std::ops::{Add, BitOr, BitXor, Shr};
 use std::rc::Rc;
 
-pub trait Annotation: fmt::Debug + Clone {}
-
 pub type Id = usize;
 
 /// Number of newlines. A single line has height 0.
@@ -13,27 +11,26 @@ pub type Height = u32;
 pub type Width = i16;
 
 #[derive(Clone)]
-pub struct Doc<A: Annotation> {
+pub struct Doc {
     id: Id,
-    notation: Rc<Notation<A>>,
+    notation: Rc<Notation>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Notation<A: Annotation> {
+pub enum Notation {
     Empty,
     Text(String),
     Spaces(Width),
     Newline,
     EndOfLine,
-    Indent(Width, Doc<A>),
-    Flat(Doc<A>),
-    Align(Doc<A>),
-    Concat(Doc<A>, Doc<A>),
-    Choice(Doc<A>, Doc<A>),
-    Annotate(A, Doc<A>),
+    Indent(Width, Doc),
+    Flat(Doc),
+    Align(Doc),
+    Concat(Doc, Doc),
+    Choice(Doc, Doc),
 }
 
-impl<A: Annotation> fmt::Display for Notation<A> {
+impl fmt::Display for Notation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Notation::*;
 
@@ -48,17 +45,16 @@ impl<A: Annotation> fmt::Display for Notation<A> {
             Align(d) => write!(f, "Align({})", d),
             Concat(d1, d2) => write!(f, "{} + {}", d1, d2),
             Choice(d1, d2) => write!(f, "({} | {})", d1, d2),
-            Annotate(_, d) => write!(f, "@{}", d),
         }
     }
 }
 
-impl<A: Annotation> Doc<A> {
+impl Doc {
     pub fn id(&self) -> Id {
         self.id
     }
 
-    pub fn notation(&self) -> &Notation<A> {
+    pub fn notation(&self) -> &Notation {
         &self.notation
     }
 
@@ -77,7 +73,7 @@ impl<A: Annotation> Doc<A> {
 
         match &*self.notation {
             Empty | Newline | EndOfLine | Spaces(_) | Text(_) => (),
-            Indent(_, doc) | Flat(doc) | Align(doc) | Annotate(_, doc) => doc.insert_id(set),
+            Indent(_, doc) | Flat(doc) | Align(doc) => doc.insert_id(set),
             Concat(x, y) | Choice(x, y) => {
                 x.insert_id(set);
                 y.insert_id(set);
@@ -87,20 +83,20 @@ impl<A: Annotation> Doc<A> {
     }
 }
 
-impl<A: Annotation> fmt::Display for Doc<A> {
+impl fmt::Display for Doc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.notation)
     }
 }
 
-impl<A: Annotation> fmt::Debug for Doc<A> {
+impl fmt::Debug for Doc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self.notation)
     }
 }
 
-impl<A: Annotation> Doc<A> {
-    fn new(notation: Notation<A>) -> Doc<A> {
+impl Doc {
+    fn new(notation: Notation) -> Doc {
         Doc {
             id: random(),
             notation: Rc::new(notation),
@@ -108,84 +104,82 @@ impl<A: Annotation> Doc<A> {
     }
 }
 
-pub fn empty<A: Annotation>() -> Doc<A> {
+pub fn empty() -> Doc {
     Doc::new(Notation::Empty)
 }
 
-pub fn text_owned<A: Annotation>(s: String) -> Doc<A> {
+pub fn text_owned(s: String) -> Doc {
     Doc::new(Notation::Text(s))
 }
 
-pub fn text<A: Annotation>(s: &str) -> Doc<A> {
+pub fn text(s: &str) -> Doc {
     text_owned(s.to_owned())
 }
 
-pub fn space<A: Annotation>() -> Doc<A> {
+pub fn space() -> Doc {
     Doc::new(Notation::Spaces(1))
 }
 
-pub fn spaces<A: Annotation>(width: Width) -> Doc<A> {
+pub fn spaces(width: Width) -> Doc {
     Doc::new(Notation::Spaces(width))
 }
 
-pub fn nl<A: Annotation>() -> Doc<A> {
+pub fn nl() -> Doc {
     Doc::new(Notation::Newline)
 }
 
-pub fn eol<A: Annotation>() -> Doc<A> {
+pub fn eol() -> Doc {
     Doc::new(Notation::EndOfLine)
 }
 
-pub fn indent<A: Annotation>(ind: Width, node: Doc<A>) -> Doc<A> {
+pub fn indent(ind: Width, node: Doc) -> Doc {
     Doc::new(Notation::Indent(ind, node))
 }
 
-pub fn flat<A: Annotation>(node: Doc<A>) -> Doc<A> {
+pub fn flat(node: Doc) -> Doc {
     Doc::new(Notation::Flat(node))
 }
 
-pub fn align<A: Annotation>(node: Doc<A>) -> Doc<A> {
+pub fn align(node: Doc) -> Doc {
     Doc::new(Notation::Align(node))
 }
 
-pub fn nested<A: Annotation>(ind: Width, node: Doc<A>) -> Doc<A> {
+pub fn nested(ind: Width, node: Doc) -> Doc {
     indent(ind, nl() + node) + nl()
 }
 
-impl<A: Annotation> Add<Doc<A>> for Doc<A> {
-    type Output = Doc<A>;
+impl Add<Doc> for Doc {
+    type Output = Doc;
 
     /// Shorthand for `Concat`.
-    fn add(self, other: Doc<A>) -> Doc<A> {
+    fn add(self, other: Doc) -> Doc {
         Doc::new(Notation::Concat(self, other))
     }
 }
 
-impl<A: Annotation> BitOr<Doc<A>> for Doc<A> {
-    type Output = Doc<A>;
+impl BitOr<Doc> for Doc {
+    type Output = Doc;
 
     /// Shorthand for `Choice`.
-    fn bitor(self, other: Doc<A>) -> Doc<A> {
+    fn bitor(self, other: Doc) -> Doc {
         Doc::new(Notation::Choice(self, other))
     }
 }
 
-impl<A: Annotation> BitXor<Doc<A>> for Doc<A> {
-    type Output = Doc<A>;
+impl BitXor<Doc> for Doc {
+    type Output = Doc;
 
     /// Shorthand for `X + newline() + Y`.
-    fn bitxor(self, other: Doc<A>) -> Doc<A> {
+    fn bitxor(self, other: Doc) -> Doc {
         self + nl() + other
     }
 }
 
-impl<A: Annotation> Shr<Doc<A>> for Width {
-    type Output = Doc<A>;
+impl Shr<Doc> for Width {
+    type Output = Doc;
 
     /// Shorthand for nesting
-    fn shr(self, node: Doc<A>) -> Doc<A> {
+    fn shr(self, node: Doc) -> Doc {
         nl() + spaces(self) + align(node)
     }
 }
-
-impl Annotation for () {}

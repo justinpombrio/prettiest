@@ -2,7 +2,7 @@ use prettiest::oracle::verify_with_oracle;
 use prettiest::{pretty_print, Doc, Overflow, PrettyResult, Width};
 
 #[track_caller]
-pub fn assert_pretty(doc: &Doc<()>, width: Width, expected: &str) {
+pub fn assert_pretty(doc: &Doc, width: Width, expected: &str) {
     assert_generic(
         doc,
         width,
@@ -14,12 +14,12 @@ pub fn assert_pretty(doc: &Doc<()>, width: Width, expected: &str) {
 }
 
 #[track_caller]
-pub fn assert_pretty_multiline(doc: &Doc<()>, width: Width, expected: &str) {
+pub fn assert_pretty_multiline(doc: &Doc, width: Width, expected: &str) {
     assert_pretty(doc, width, &expected[1..]);
 }
 
 #[track_caller]
-pub fn assert_ugly(doc: &Doc<()>, width: Width, expected: &str, expected_overflow: Overflow) {
+pub fn assert_ugly(doc: &Doc, width: Width, expected: &str, expected_overflow: Overflow) {
     assert_generic(
         doc,
         width,
@@ -31,28 +31,23 @@ pub fn assert_ugly(doc: &Doc<()>, width: Width, expected: &str, expected_overflo
 }
 
 #[track_caller]
-pub fn assert_ugly_multiline(
-    doc: &Doc<()>,
-    width: Width,
-    expected: &str,
-    expected_overflow: Overflow,
-) {
+pub fn assert_ugly_multiline(doc: &Doc, width: Width, expected: &str, expected_overflow: Overflow) {
     assert_ugly(doc, width, &expected[1..], expected_overflow);
 }
 
 #[track_caller]
-pub fn assert_invalid(doc: &Doc<()>, width: Width) {
+pub fn assert_invalid(doc: &Doc, width: Width) {
     assert_generic(doc, width, Some(PrettyResult::Invalid));
 }
 
 #[allow(unused)]
 #[track_caller]
-pub fn assert_unknown(doc: &Doc<()>, width: Width) {
+pub fn assert_unknown(doc: &Doc, width: Width) {
     assert_generic(doc, width, None)
 }
 
 #[track_caller]
-fn assert_generic(doc: &Doc<()>, width: Width, test_case: Option<PrettyResult>) {
+fn assert_generic(doc: &Doc, width: Width, test_case: Option<PrettyResult>) {
     if let Some(test_case) = test_case {
         // 1. Compare what the test case says against the oracle.
         match verify_with_oracle(doc, width, &test_case) {
@@ -87,7 +82,7 @@ fn assert_generic(doc: &Doc<()>, width: Width, test_case: Option<PrettyResult>) 
 
 /*
 #[track_caller]
-fn assert_generic(doc: &Doc<()>, width: Width, test_case: Option<PrettyResult>) {
+fn assert_generic(doc: &Doc, width: Width, test_case: Option<PrettyResult>) {
     let oracle = oracular_pretty_print(doc, width);
     if let Some(test_case) = test_case {
         compare_results(doc, width, ("ORACLE", &oracle), ("TEST CASE", &test_case));
@@ -125,7 +120,7 @@ fn render_result(result: &PrettyResult) -> String {
 
 #[track_caller]
 fn compare_results(
-    doc: &Doc<()>,
+    doc: &Doc,
     width: Width,
     expected: (&str, &PrettyResult),
     actual: (&str, &PrettyResult),

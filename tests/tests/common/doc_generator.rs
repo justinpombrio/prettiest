@@ -9,10 +9,10 @@ pub use super::generators::Size;
 pub fn doc_factory() -> Factory {
     let mut factory = Factory::new();
 
-    let gen_doc = gen_rec::<Doc<()>>();
+    let gen_doc = gen_rec::<Doc>();
 
     // Size 0
-    let gen_empty = gen_value::<Doc<()>>(empty());
+    let gen_empty = gen_value::<Doc>(empty());
     let gen_nl = gen_value(nl());
     let gen_eol = gen_value(eol());
 
@@ -58,9 +58,9 @@ pub fn doc_factory() -> Factory {
 fn test_doc_factory() {
     let mut factory = doc_factory();
 
-    assert_eq!(factory.count::<Doc<()>>(0), Some(5));
-    assert_eq!(factory.iter::<Doc<()>>(0).count(), 5);
-    assert_eq!(factory.count::<Doc<()>>(1), Some(67));
-    assert_eq!(factory.iter::<Doc<()>>(1).count(), 67);
-    assert_eq!(factory.count::<Doc<()>>(100), None);
+    assert_eq!(factory.count::<Doc>(0), Some(5));
+    assert_eq!(factory.iter::<Doc>(0).count(), 5);
+    assert_eq!(factory.count::<Doc>(1), Some(67));
+    assert_eq!(factory.iter::<Doc>(1).count(), 67);
+    assert_eq!(factory.count::<Doc>(100), None);
 }

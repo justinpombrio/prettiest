@@ -14,7 +14,7 @@ pub enum XmlContent {
     Sequence(Vec<Xml>),
 }
 
-pub fn format_xml(xml: &Xml) -> Doc<()> {
+pub fn format_xml(xml: &Xml) -> Doc {
     use XmlContent::{Empty, Sequence, Text};
 
     let attributes = format_attributes(&xml.attributes);
@@ -57,16 +57,16 @@ pub fn format_xml(xml: &Xml) -> Doc<()> {
     }
 }
 
-fn format_attributes(attributes: &[(String, String)]) -> Doc<()> {
-    fn quoted(val: &str) -> Doc<()> {
+fn format_attributes(attributes: &[(String, String)]) -> Doc {
+    fn quoted(val: &str) -> Doc {
         text("\"") + text(val) + text("\"")
     }
 
-    fn flat_attribute(key: &str, val: &str) -> Doc<()> {
+    fn flat_attribute(key: &str, val: &str) -> Doc {
         text(key) + text("=") + quoted(val)
     }
 
-    fn attribute(key: &str, val: &str) -> Doc<()> {
+    fn attribute(key: &str, val: &str) -> Doc {
         text(key) + (empty() | nl() + spaces(2)) + text("=") + quoted(val)
     }
 
@@ -110,7 +110,7 @@ fn format_attributes(attributes: &[(String, String)]) -> Doc<()> {
     single_line | aligned | multi_line
 }
 
-fn word_flow(string: &str) -> Doc<()> {
+fn word_flow(string: &str) -> Doc {
     let mut words = string.split_whitespace();
     if let Some(first_word) = words.next() {
         let mut flow = text(first_word);

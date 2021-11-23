@@ -1,7 +1,7 @@
 use prettiest::constructors::{nl, text};
 use prettiest::{pretty_print, Doc, PrettyResult};
 
-fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Doc<()> {
+fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Doc {
     let mut iter = words.into_iter();
     let first_word = iter.next().unwrap();
 

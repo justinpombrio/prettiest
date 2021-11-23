@@ -103,7 +103,7 @@ fn test_eol() {
     assert_invalid(&doc, 80);
 }
 
-pub fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Doc<()> {
+pub fn word_flow<'a>(words: impl Iterator<Item = &'a str>) -> Doc {
     let mut iter = words.into_iter();
     let first_word = iter.next().unwrap();
 
