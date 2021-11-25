@@ -24,6 +24,9 @@ function run_test {
     done
 }
 
+ghc --make prettier.hs || exit 1
+ghc --make lazy_dequeue.hs || exit 1
+
 echo "NOTE: In CHITIL, the size is the pretty printing width. In the rest, it is the size of the
 document."
 
