@@ -113,13 +113,20 @@ nestedLists :: Int -> DOC
 nestedLists 0 = text "[]"
 nestedLists n = group (text "[" <> (nestedLists (n - 1)) <> text "]")
 
+chitilDoc :: Int -> DOC
+chitilDoc 0 = text ""
+chitilDoc n = group (text "*" <> line <> chitilDoc (n - 1))
+
+chitil :: DOC
+chitil = foldr1 (\x y -> x <> line <> y) $ take 500 $ repeat $ chitilDoc 200
+
 main :: IO ()
 main = do
   args <- getArgs
   if length args /= 2
   then do
     putStrLn "Usage: ./prettier [DOC] size"
-    putStrLn "where DOC is 'huge', 'antagonistic', or 'nestedLists'"
+    putStrLn "where DOC is 'huge', 'antagonistic', 'nestedLists', or chitil"
   else
     let which = args !! 0
         size = (read $ args !! 1) :: Int
@@ -127,4 +134,5 @@ main = do
       "huge"         -> putStrLn $ pretty 10 (huge size)
       "nestedLists"  -> putStrLn $ pretty (2 * size) (nestedLists size)
       "antagonistic" -> putStrLn $ pretty 10 (antagonistic size)
+      "chitil"       -> putStrLn $ show $ length $ pretty size chitil
       _              -> error "DOC not recognized"

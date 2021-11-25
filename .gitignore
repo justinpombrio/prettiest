@@ -17,4 +17,8 @@ notes/prettier.hi
 notes/prettier.o
 notes/prettier
 
+notes/lazy_dequeue.hi
+notes/lazy_dequeue.o
+notes/lazy_dequeue
+
 flamegraph.svg
