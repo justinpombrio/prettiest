@@ -127,4 +127,5 @@ main = do
   else
     let size = (read $ args !! 1) :: Int
     in do
+      --putStrLn $ pretty size chitil
       putStrLn $ show $ length $ pretty size chitil

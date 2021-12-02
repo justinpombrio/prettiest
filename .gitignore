@@ -21,4 +21,8 @@ notes/lazy_dequeue.hi
 notes/lazy_dequeue.o
 notes/lazy_dequeue
 
+notes/linear_time.hi
+notes/linear_time.o
+notes/linear_time
+
 flamegraph.svg

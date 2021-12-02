@@ -26,6 +26,7 @@ function run_test {
 
 ghc --make prettier.hs || exit 1
 ghc --make lazy_dequeue.hs || exit 1
+ghc --make linear_time.hs || exit 1
 
 echo "NOTE: In CHITIL, the size is the pretty printing width. In the rest, it is the size of the
 document."
@@ -34,6 +35,11 @@ echo ""
 echo "lazy_dequeue.hs"
 echo "==============="
 run_test lazy_dequeue chitil $chitil_sizes
+
+echo ""
+echo "linear_time.hs"
+echo "==============="
+run_test linear_time chitil $chitil_sizes
 
 echo ""
 echo "prettier.hs"

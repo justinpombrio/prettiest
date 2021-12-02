@@ -126,7 +126,7 @@ main = do
   if length args /= 2
   then do
     putStrLn "Usage: ./prettier [DOC] size"
-    putStrLn "where DOC is 'huge', 'antagonistic', 'nestedLists', or chitil"
+    putStrLn "where DOC is 'huge', 'antagonistic', 'nestedLists', or 'chitil'"
   else
     let which = args !! 0
         size = (read $ args !! 1) :: Int
