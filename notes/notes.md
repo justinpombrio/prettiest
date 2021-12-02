@@ -62,6 +62,20 @@ Under that assumption, Wadler's printer runs in `O(nw)` time:
 Why do I say `O(nw)` when the above example is quadratic? Say `n = kw`. Then you can construct `k`
 nested lists, each with runtime quadratic in `w`, giving a total runtime of `O(kw^2) = O(nw)`.
 
+### Reasonable-ness assumption
+
+Some of the above examples are slow, but seem like _unreasonable_ inputs. What counts as reasonable,
+though? One suggestion by Kiselyov, Peyton-Jones, and Sabry in "Lazy v. Yield: Incremental, Linear
+Pretty-printing":
+
+> The function genB performs normalization of the document, ensuring that: (i) every group is
+> strictly wider than any of its children groups (thus eliminating Group (Group ...)); (ii) any
+> group is at least one-character wide. Normalization is often overlooked, yet critical: without it
+> no pretty-printing algorithm can have bounded look-ahead. For example, in a document with a branch
+> (Group ◦ Group ◦ ... ◦ Group) (Text ””) 19 with an arbitrarily long sequence of Groups, any
+> pretty-printing algorithm without normalization has to scan the whole branch, which can be
+> arbitrarily long, to determine that it does not contribute to the width of the current branch.
+
 ## Trees or DAGs?
 
 Is a Doc a tree or a DAG? DAGs are more expressive, but you have to be careful with them. If you
