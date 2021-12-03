@@ -8,6 +8,9 @@
 -- The idea is to _measure_ each Doc at construction time, determining enough information to resolve
 -- choices without any lookahead.
 
+-- TODO: add Flatten
+module Pombrio (Doc, nil, (<>), nest, text, line, group, pretty) where
+
 import System.Environment (getArgs)
 import Data.List.Split (splitOn)
 import Data.List (intercalate)

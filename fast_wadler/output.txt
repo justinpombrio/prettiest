@@ -1,0 +1,178 @@
+
+┏━━━━━━━━━┓
+┃ Testing ┃
+┗━━━━━━━━━┛
+
+test Chitil chitil 20 -> pass
+test Chitil huge 20 -> pass
+test Chitil antagonistic 20 -> pass
+test Chitil nestedLists 20 -> pass
+
+test Chitil all 0 -> pass
+test Chitil all 1 -> pass
+test Chitil all 2 -> pass
+test Chitil all 3 -> pass
+test Chitil all 4 -> pass
+test Chitil all 5 -> pass
+
+test Pombrio chitil 20 -> pass
+test Pombrio huge 20 -> pass
+test Pombrio antagonistic 20 -> pass
+test Pombrio nestedLists 20 -> pass
+
+test Pombrio all 0 -> pass
+test Pombrio all 1 -> pass
+test Pombrio all 2 -> pass
+test Pombrio all 3 -> pass
+test Pombrio all 4 -> pass
+test Pombrio all 5 -> pass
+
+┏━━━━━━━━━━━┓
+┃ Chitil.hs ┃
+┗━━━━━━━━━━━┛
+
+Test case chitil
+----------------
+Size	Time(s)
+20	0.23
+40	0.24
+60	0.25
+80	0.26
+100	0.29
+120	0.29
+140	0.32
+
+Test case huge
+--------------
+Size	Time(s)
+20	0.03
+21	0.06
+22	0.12
+23	0.26
+24	0.52
+25	1.06
+26	2.06
+
+Test case antagonistic
+----------------------
+Size	Time(s)
+200	0.00
+400	0.00
+600	0.00
+800	0.00
+1000	0.00
+1500	0.00
+2000	0.00
+2500	0.00
+3000	0.00
+
+Test case nestedLists
+---------------------
+Size	Time(s)
+200	0.00
+400	0.00
+600	0.00
+800	0.00
+1000	0.00
+1500	0.00
+2000	0.00
+
+┏━━━━━━━━━━━━┓
+┃ Pombrio.hs ┃
+┗━━━━━━━━━━━━┛
+
+Test case chitil
+----------------
+Size	Time(s)
+20	0.02
+40	0.01
+60	0.01
+80	0.01
+100	0.01
+120	0.01
+140	0.01
+
+Test case huge
+--------------
+Size	Time(s)
+20	0.02
+21	0.05
+22	0.10
+23	0.20
+24	0.40
+25	0.81
+26	1.78
+
+Test case antagonistic
+----------------------
+Size	Time(s)
+200	0.00
+400	0.00
+600	0.00
+800	0.00
+1000	0.00
+1500	0.00
+2000	0.00
+2500	0.00
+3000	0.00
+
+Test case nestedLists
+---------------------
+Size	Time(s)
+200	0.00
+400	0.00
+600	0.00
+800	0.00
+1000	0.00
+1500	0.00
+2000	0.00
+
+┏━━━━━━━━━━━┓
+┃ Wadler.hs ┃
+┗━━━━━━━━━━━┛
+
+Test case chitil
+----------------
+Size	Time(s)
+20	0.13
+40	0.24
+60	0.33
+80	0.42
+100	0.46
+120	0.55
+140	0.59
+
+Test case huge
+--------------
+Size	Time(s)
+20	0.02
+21	0.04
+22	0.08
+23	0.16
+24	0.33
+25	0.66
+26	1.33
+
+Test case antagonistic
+----------------------
+Size	Time(s)
+200	0.00
+400	0.02
+600	0.05
+800	0.10
+1000	0.14
+1500	0.34
+2000	0.66
+2500	1.14
+3000	1.92
+
+Test case nestedLists
+---------------------
+Size	Time(s)
+200	0.00
+400	0.04
+600	0.10
+800	0.20
+1000	0.31
+1500	0.88
+2000	1.65
