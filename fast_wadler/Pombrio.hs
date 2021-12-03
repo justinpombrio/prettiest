@@ -9,11 +9,7 @@
 -- choices without any lookahead.
 
 -- TODO: add Flatten
-module Pombrio (Doc, nil, (<>), nest, text, line, group, pretty) where
-
-import System.Environment (getArgs)
-import Data.List.Split (splitOn)
-import Data.List (intercalate)
+module Pombrio (MDoc, nil, (<>), nest, text, line, group, pretty) where
 
 {-----------------------------------------------------------------------------}
 {- Measurements                                                              -}
@@ -48,76 +44,37 @@ suffixLen (Measure f (Just s)) = f `min` s
 {- Pretty Printing                                                           -}
 {-----------------------------------------------------------------------------}
 
+type MDoc = (Doc, Measure)
+
 data Doc =
     Empty
   | Text String
   | Line
-  | Nest Int Doc Measure
-  | Group Doc Measure
-  | Concat Doc Doc Measure
+  | Nest Int MDoc
+  | Group MDoc
+  | MDoc :<> MDoc
 
-measure :: Doc -> Measure
-measure Empty          = Measure 0 Nothing
-measure (Text s)       = Measure (length s) Nothing
-measure Line           = Measure 1 (Just 0)
-measure (Nest _ _ m)   = m
-measure (Concat _ _ m) = m
-measure (Group _ m)    = m
+nil = (Empty, emptyMeasure)
+text s = (Text s, Measure (length s) Nothing)
+line = (Line, Measure 1 (Just 0))
+nest i (x, xm) = (Nest i (x, xm), xm)
+group (x, xm) = (Group (x, xm), xm)
+(x, mx) <> (y, my) = ((x, mx) :<> (y, my), addMeasure mx my)
 
-nil = Empty
-text s = Text s
-line = Line
-nest i x = Nest i x (measure x)
-group x = Group x (measure x)
-x <> y = Concat x y (addMeasure (measure x) (measure y))
-
-pretty :: Int -> Doc -> String
-pretty w d = concat $ pp w 0 [(0, False, emptyMeasure, d)]
+pretty :: Int -> MDoc -> String
+pretty w d = concat $ pp w 0 [(0, False, emptyMeasure, fst d)]
   where
     pp :: Int -> Int -> [(Int, Bool, Measure, Doc)] -> [String]
     pp w p [] = []
     pp w p ((_, _, _, Empty) : xs)      = pp w p xs
     pp w p ((_, _, _, Text s) : xs)     = s : pp w (p + length s) xs
-    pp w p ((i, h, m, Nest j x _) : xs) = pp w p ((i + j, h, m, x) : xs)
-    pp w p ((i, h, m, Group x m') : xs) =
-      let fits = p + flatLen m' + suffixLen m <= w
-      in pp w p ((i, h || fits, m, x) : xs)
-    pp w p ((i, h, m, Concat x y _) : xs) =
-      pp w p ((i, h, addMeasure (measure y) m, x) : (i, h, m, y) : xs)
-    pp w p ((i, h, m, Line) : xs)      =
+    pp w p ((i, h, m, Nest j (x, mx)) : ys) = pp w p ((i + j, h, m, x) : ys)
+    pp w p ((i, h, m, Group (x, mx)) : ys) =
+      let fits = p + flatLen mx + suffixLen m <= w
+      in pp w p ((i, h || fits, m, x) : ys)
+    pp w p ((i, h, m, (x, mx) :<> (y, my)) : zs) =
+      pp w p ((i, h, addMeasure my m, x) : (i, h, m, y) : zs)
+    pp w p ((i, h, m, Line) : xs) =
       if h
       then " " : pp w (p + 1) xs
       else ("\n" ++ replicate i ' ') : pp w 0 xs
-
-{-----------------------------------------------------------------------------}
-{- Testing. The `chitil` example is from the paper, in section 10.           -}
-{-----------------------------------------------------------------------------}
-
-chitilDoc :: Int -> Doc
-chitilDoc 0 = text ""
-chitilDoc n = group (text "*" <> line <> chitilDoc (n - 1))
-
-chitil :: Doc
-chitil = foldr1 (\x y -> x <> line <> y) $ take 500 $ repeat $ chitilDoc 200
-
-incr :: Int -> Doc
-incr 0 = text "leaf(size = 0)"
-incr n = group (text ("branch(size = " ++ show (2 ^ n) ++ "):")
-                       <> nest 4 (line <> subdoc <> line <> subdoc)
-                       <> line <> text "end")
-  where subdoc = incr (n - 1)
-
-main :: IO ()
-main = do
-  args <- getArgs
-  if length args /= 2
-  then do
-    putStrLn "Usage: ./linear_time [DOC] size"
-    putStrLn "where DOC is 'chitil' or 'incremental'"
-  else
-    let which = args !! 0
-        size = (read $ args !! 1) :: Int
-    in case which of
-      "chitil"         -> putStrLn $ show $ length $ pretty size chitil
-      "incremental"    -> putStrLn $ intercalate "\n" $ take 10 $ splitOn "\n"
-                          $ pretty 80 (incr size)
