@@ -85,12 +85,11 @@ instance GenericDoc ShowDoc where
   flatten x = ShowDoc $ "(flatten " ++ unwrapShowDoc x ++ ")"
   pretty = undefined
 
+showOutput :: String -> String
+showOutput o = if length o > 1000 then "[large output omitted]" else o
+
 showDoc :: DocMaker -> String
-showDoc d = if length printed > 1000
-            then "[large doc omitted]"
-            else printed
-  where
-    printed = unwrapShowDoc (makeDoc d :: ShowDoc)
+showDoc d = showOutput $ unwrapShowDoc $ (makeDoc d :: ShowDoc)
 
 -- Generate all docs of the given size
 gDoc :: Gen DocMaker
@@ -316,7 +315,7 @@ runExample _ (Example d w (Just l)) = intercalate "\n" $ take l $ split '\n' $ p
 runPretty :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
 runPretty t which size = do
   (Examples examples _) <- lookupExamples which size
-  sequence_ (map (putStrLn . show . length . runExample t) examples)
+  sequence_ (map (putStrLn . runExample t) examples)
 
 compareToWadler :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
 compareToWadler t which size = do
@@ -336,8 +335,8 @@ matchesWadler t ex@(Example d w _) =
   if wadlerOut == otherOut
   then Nothing
   else Just ("FAILED at width " ++ show w ++ " on doc " ++ showDoc (DocMaker d) ++ "\n" ++
-             "EXPECTED:\n" ++ wadlerOut ++ "\n" ++
-             "ACTUAL:\n" ++ otherOut ++ "\n" ++
+             "EXPECTED:\n" ++ showOutput wadlerOut ++ "\n" ++
+             "ACTUAL:\n" ++ showOutput otherOut ++ "\n" ++
              "END\n\n")
 
 main = do

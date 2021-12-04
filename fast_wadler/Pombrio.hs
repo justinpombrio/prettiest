@@ -8,7 +8,6 @@
 -- The idea is to _measure_ each Doc at construction time, determining enough information to resolve
 -- choices without any lookahead.
 
--- TODO: add Flatten
 module Pombrio (MDoc, nil, (<|>), (<>), nest, text, line, group, flatten, pretty) where
 
 {------------------------------------------------------------------------------}
@@ -28,23 +27,11 @@ flattenM (Measure f s) = Measure f Nothing
 -- Combine the measure of a Doc `x` and the measure of a Doc `y` to obtain the measure of `x <> y`.
 addM :: Measure -> Measure -> Measure
 addM (Measure f s) (Measure f' s') = Measure (f + f') (addSuffix f s s')
-
-unionM :: Measure -> Measure -> Measure
-unionM (Measure f s) (Measure f' s') = Measure (f `min` f') (unionSuffix s s')
-
-addSuffix _ Nothing  Nothing   = Nothing
-addSuffix _ (Just s) Nothing   = Just s
-addSuffix f Nothing  (Just s') = Just (f + s')
-addSuffix f (Just s) (Just s') = Just (s `min` (f + s'))
-
-unionSuffix Nothing Nothing = Nothing
-unionSuffix (Just s) Nothing = Just s
-unionSuffix Nothing (Just s') = Just s'
-unionSuffix (Just s) (Just s') = Just (s `min` s')
-
--- The minimum width, if rendered flat (horizontally).
-flatLen :: Measure -> Int
-flatLen (Measure f _) = f
+  where
+    addSuffix _ Nothing  Nothing   = Nothing
+    addSuffix _ (Just s) Nothing   = Just s
+    addSuffix f Nothing  (Just s') = Just (f + s')
+    addSuffix f (Just s) (Just s') = Just (s `min` (f + s'))
 
 -- The width until the earliest possible newline, or end of document.
 suffixLen :: Measure -> Int
@@ -73,7 +60,7 @@ nest i (x, xm) = (Nest i (x, xm), xm)
 group x = flatten x <|> x
 flatten (x, mx) = (Flatten (x, mx), flattenM mx)
 (x, mx) <> (y, my) = ((x, mx) :<> (y, my), addM mx my)
-(x, mx) <|> (y, my) = ((x, mx) :<|> (y, my), unionM mx my)
+(x, mx) <|> (y, my) = ((x, mx) :<|> (y, my), my)
 
 pretty :: Int -> MDoc -> String
 pretty w d = concat $ pp w 0 [(0, False, emptyM, fst d)]
