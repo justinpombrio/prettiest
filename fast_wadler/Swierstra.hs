@@ -2,6 +2,9 @@
 
 module Swierstra where
 
+import qualified Dequeue as DQ
+import Dequeue (BankersDequeue)
+
 -- The implementation from the paper Linear, bounded, functional pretty-printing
 -- by Swierstra & Chitil, in the Journal of Functional Programming (functional pearl), 2009.
 
@@ -23,9 +26,7 @@ type Position = Int
 type Remaining = Int
 type Horizontal = Bool
 
-data Dequeue e = EmptyDQ         -- the empty dequeue
-               | e :<| Dequeue e -- prepend an element
-               | Dequeue e :|> e -- append an element
+type Dequeue e = BankersDequeue e
 
 type Out = Remaining -> Layout
 type OutGroup = Horizontal -> Out -> Out
@@ -44,23 +45,32 @@ instance Doc Cont where
                 outLine True c r = ' ' :                      c (r - 1)
                 outLine False c r = '\n' : replicate i ' ' ++ c (w - i)
   (dl <> dr) iw = dl iw . dr iw
-  group d iw = \c p dq -> d iw (leave c) p (dq :|> (p, \h c -> c))
+  group d iw = \c p dq -> d iw (leave c) p (dq `DQ.pushBack` (p, \h c -> c))
   nest j d (i, w) = d (i + j, w)
-  pretty w d = d (0, w) (\p dq r -> "") 0 EmptyDQ w
+  pretty w d = d (0, w) (\p dq r -> "") 0 DQ.empty w
   nil iw = \c -> c
 
 scan :: Width -> OutGroup -> TreeCont -> TreeCont
-scan l out c p EmptyDQ = out False (c (p + l) EmptyDQ)
-scan l out c p (dq :|> (s, grp)) = prune c (p + l) (dq :|> (s, \h -> grp h . out h))
+scan l out c p dq =
+  case DQ.popBack dq of
+    Nothing -> out False (c (p + l) DQ.empty)
+    Just ((s, grp), dq) ->
+      prune c (p + l) (dq `DQ.pushBack` (s, \h -> grp h . out h))
 
 prune :: TreeCont -> TreeCont
-prune c p EmptyDQ r = c p EmptyDQ r
-prune c p dq@((s, grp) :<| dq') r | p > s + r = grp False (prune c p dq') r
---                                | True = grp False (prune c p dq') r
-prune c p dq r = c p dq r -- Correct? Unclear from paper
+prune c p dq r =
+  case DQ.popFront dq of
+    Nothing -> c p DQ.empty r
+    Just ((s, grp), dq') | p > s + r -> grp False (prune c p dq') r
+                         | True      -> c p dq r
 
 leave :: TreeCont -> TreeCont
-leave c p EmptyDQ = c p EmptyDQ
-leave c p (EmptyDQ :|> (s1, grp1)) = grp1 True (c p EmptyDQ)
-leave c p (pp :|> (s2, grp2) :|> (s1, grp1)) =
-      c p (pp :|> (s2, \h c -> grp2 h (\r -> grp1 (p <= s1 + r) c r)))
+leave c p dq =
+  case DQ.popBack dq of
+    Nothing -> c p DQ.empty
+    Just ((s1, grp1), dq') ->
+      case DQ.popBack dq' of
+        Nothing -> grp1 True (c p DQ.empty)
+        Just ((s2, grp2), pp) ->
+          c p (pp `DQ.pushBack`
+               (s2, \h c -> grp2 h (\r -> grp1 (p <= s1 + r) c r)))
