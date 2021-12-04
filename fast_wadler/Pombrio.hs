@@ -9,27 +9,38 @@
 -- choices without any lookahead.
 
 -- TODO: add Flatten
-module Pombrio (MDoc, nil, (<>), nest, text, line, group, pretty) where
+module Pombrio (MDoc, nil, (<|>), (<>), nest, text, line, group, flatten, pretty) where
 
-{-----------------------------------------------------------------------------}
-{- Measurements                                                              -}
-{-----------------------------------------------------------------------------}
+{------------------------------------------------------------------------------}
+{- Measurements                                                               -}
+{------------------------------------------------------------------------------}
 
--- Int is flatLen         -- the minimum width if rendered horizontally
--- Maybe Int is suffixLen -- the width until the earliest possible newline
+-- Int is flatLen         -- the minimum width if rendered flat
+-- Maybe Int is suffixLen -- the width until the earliest possible newline, if any
 data Measure = Measure Int (Maybe Int)
 
-emptyMeasure :: Measure
-emptyMeasure = Measure 0 Nothing
+emptyM :: Measure
+emptyM = Measure 0 Nothing
+
+flattenM :: Measure -> Measure
+flattenM (Measure f s) = Measure f Nothing
 
 -- Combine the measure of a Doc `x` and the measure of a Doc `y` to obtain the measure of `x <> y`.
-addMeasure :: Measure -> Measure -> Measure
-addMeasure (Measure f s) (Measure f' s') = Measure (f + f') (addSuffix f s s')
+addM :: Measure -> Measure -> Measure
+addM (Measure f s) (Measure f' s') = Measure (f + f') (addSuffix f s s')
+
+unionM :: Measure -> Measure -> Measure
+unionM (Measure f s) (Measure f' s') = Measure (f `min` f') (unionSuffix s s')
 
 addSuffix _ Nothing  Nothing   = Nothing
 addSuffix _ (Just s) Nothing   = Just s
 addSuffix f Nothing  (Just s') = Just (f + s')
 addSuffix f (Just s) (Just s') = Just (s `min` (f + s'))
+
+unionSuffix Nothing Nothing = Nothing
+unionSuffix (Just s) Nothing = Just s
+unionSuffix Nothing (Just s') = Just s'
+unionSuffix (Just s) (Just s') = Just (s `min` s')
 
 -- The minimum width, if rendered flat (horizontally).
 flatLen :: Measure -> Int
@@ -40,9 +51,9 @@ suffixLen :: Measure -> Int
 suffixLen (Measure f Nothing) = f
 suffixLen (Measure f (Just s)) = f `min` s
 
-{-----------------------------------------------------------------------------}
-{- Pretty Printing                                                           -}
-{-----------------------------------------------------------------------------}
+{------------------------------------------------------------------------------}
+{- Pretty Printing                                                            -}
+{------------------------------------------------------------------------------}
 
 type MDoc = (Doc, Measure)
 
@@ -51,30 +62,44 @@ data Doc =
   | Text String
   | Line
   | Nest Int MDoc
-  | Group MDoc
+  | Flatten MDoc
   | MDoc :<> MDoc
+  | MDoc :<|> MDoc
 
-nil = (Empty, emptyMeasure)
+nil = (Empty, emptyM)
 text s = (Text s, Measure (length s) Nothing)
 line = (Line, Measure 1 (Just 0))
 nest i (x, xm) = (Nest i (x, xm), xm)
-group (x, xm) = (Group (x, xm), xm)
-(x, mx) <> (y, my) = ((x, mx) :<> (y, my), addMeasure mx my)
+group x = flatten x <|> x
+flatten (x, mx) = (Flatten (x, mx), flattenM mx)
+(x, mx) <> (y, my) = ((x, mx) :<> (y, my), addM mx my)
+(x, mx) <|> (y, my) = ((x, mx) :<|> (y, my), unionM mx my)
+
+-- fits :: Bool -> Int -> Measure -> Int -> Int -> Bool
+-- fits True p (Measure f _) s w = p + f + s <= w
+-- fits False p (Measure f Nothing) s w = p + f + s <= w
+-- fits False p (Measure f (Just s)) s' w = p + f + s' <= w || p + s <= w
+
+fits :: Int -> Measure -> Int -> Int -> Bool
+fits p (Measure f Nothing) s w = p + f + s <= w
+fits p (Measure f (Just s)) s' w = p + f + s' <= w || p + s <= w
 
 pretty :: Int -> MDoc -> String
-pretty w d = concat $ pp w 0 [(0, False, emptyMeasure, fst d)]
+pretty w d = concat $ pp w 0 [(0, False, emptyM, fst d)]
   where
     pp :: Int -> Int -> [(Int, Bool, Measure, Doc)] -> [String]
     pp w p [] = []
-    pp w p ((_, _, _, Empty) : xs)      = pp w p xs
-    pp w p ((_, _, _, Text s) : xs)     = s : pp w (p + length s) xs
-    pp w p ((i, h, m, Nest j (x, mx)) : ys) = pp w p ((i + j, h, m, x) : ys)
-    pp w p ((i, h, m, Group (x, mx)) : ys) =
-      let fits = p + flatLen mx + suffixLen m <= w
-      in pp w p ((i, h || fits, m, x) : ys)
+    pp w p ((_, _, _, Empty) : xs)           = pp w p xs
+    pp w p ((_, _, _, Text s) : xs)          = s : pp w (p + length s) xs
+    pp w p ((i, h, m, Nest j (x, mx)) : ys)  = pp w p ((i + j, h, m, x) : ys)
+    pp w p ((i, h, m, Flatten (x, mx)) : ys) = pp w p ((i, True, flattenM m, x) : ys)
+    pp w p ((i, h, m, (x, mx) :<|> (y, my)) : zs) =
+      let itFits = if h then True else fits p mx (suffixLen m) w
+      -- let itFits = fits h p mx (suffixLen m) w
+      in pp w p ((i, h, m, if itFits then x else y) : zs)
     pp w p ((i, h, m, (x, mx) :<> (y, my)) : zs) =
-      pp w p ((i, h, addMeasure my m, x) : (i, h, m, y) : zs)
+      pp w p ((i, h, addM my m, x) : (i, h, m, y) : zs)
     pp w p ((i, h, m, Line) : xs) =
       if h
       then " " : pp w (p + 1) xs
-      else ("\n" ++ replicate i ' ') : pp w 0 xs
+      else ("\n" ++ replicate i ' ') : pp w i xs
