@@ -15,7 +15,7 @@ function testit {
     local size="$1"
     shift
     echo -n "test $impl $testcase $size -> "
-    ./Benchmark test "$impl" "$testcase" "$size"
+    ./RunPretty test "$impl" "$testcase" "$size"
 }
 
 function timeit {
@@ -31,13 +31,13 @@ function timeit {
     local size runtime
     for size in "$@"; do
         runtime="$(
-          command time -f "%U" "./Benchmark" "run" "$impl" "$testcase" "$size" 2>&1 >/dev/null
+          command time -f "%U" "./RunPretty" "run" "$impl" "$testcase" "$size" 2>&1 >/dev/null
         )"
         echo -e "$size\t$runtime"
     done
 }
 
-ghc --make Benchmark.hs || exit 1
+ghc --make RunPretty.hs || exit 1
 
 echo ""
 echo "┏━━━━━━━━━┓"

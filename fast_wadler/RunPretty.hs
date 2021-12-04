@@ -181,51 +181,77 @@ makeDoc :: GenericDoc d => DocMaker -> d
 makeDoc (DocMaker d) = d
 
 type Width = Int
-data Example = Example DocMaker Width
+type Size = Int
+type NumLines = Maybe Int
 
-huge :: GenericDoc d => Int -> d
-huge 0 = nil
-huge n = let d = huge (n - 1) in d <> d
+data Example = Example (forall d. GenericDoc d => d) Width NumLines
+data Examples = Examples [Example] String
 
-incremental :: GenericDoc d => Int -> d
-incremental 0 = text "leaf(size = 0)"
-incremental n = group (text ("branch(size = " ++ show (2 ^ n) ++ "):")
-                       <> nest 4 (line <> subdoc <> line <> subdoc)
-                       <> line <> text "end")
-  where subdoc = incremental (n - 1)
+huge :: Size -> Examples
+huge n = Examples [Example (hugeDoc n) 10 Nothing]
+         "huge         -- A doc of size 2^n that is entirely empty"
+  where
+    hugeDoc 0 = nil
+    hugeDoc n = let d = hugeDoc (n - 1) in d <> d
 
-antagonistic :: GenericDoc d => Int -> d
-antagonistic 0 = text "line"
-antagonistic n = group (antagonistic (n - 1) <> line <> text "line")
+incremental :: Size -> Examples
+incremental n = Examples [Example (expDoc n) 80 (Just 10)]
+                "incremental  -- Just the first 10 lines of a doc of size ~2^n"
 
-tnestedLists :: GenericDoc d => Int -> d
-tnestedLists 0 = text "[]"
-tnestedLists n = group (text "[" <> (nestedLists (n - 1)) <> text "]")
+exponential :: Size -> Examples
+exponential n = Examples [Example (expDoc n) 80 Nothing]
+                "exponential  -- A tree-shaped doc of size ~2^n"
 
--- TODO: temporary
-nestedLists :: GenericDoc d => Int -> d
-nestedLists _ = text "a" <> text "a" <> flatten (text "a" <|> nil)
+expDoc 0 = text "leaf(size = 0)"
+expDoc n = group (text ("branch(size = " ++ show (2 ^ n) ++ "):")
+                <> nest 4 (line <> subdoc <> line <> subdoc)
+                <> line <> text "end")
+  where subdoc = expDoc (n - 1)
 
-chitilDoc :: GenericDoc d => Int -> d
-chitilDoc 0 = text ""
-chitilDoc n = group (text "*" <> line <> chitilDoc (n - 1))
+antagonistic :: Size -> Examples
+antagonistic n = Examples [Example (ant n) 10 Nothing]
+                 "antagonistic -- A doc designed to foil Wadler's printer by taking time O(n^2)"
+  where
+    ant 0 = text "line"
+    ant n = group (ant (n - 1) <> line <> text "line")
 
-chitil :: GenericDoc d => d
-chitil = foldr1 (\x y -> x <> line <> y) $ take 500 $ repeat $ chitilDoc 200
+-- TODO: put some optional newlines in here?
+nestedLists :: Size -> Examples
+nestedLists n = Examples [Example (nested n) (2 * n) Nothing]
+                "nestedLists  -- Deeply nested lists: nested depth is n, printing width is 2*n"
+  where
+    nested 0 = text "[]"
+    nested n = group (text "[" <> (nested (n - 1)) <> text "]")
 
-wadlerXml :: GenericDoc d => d
-wadlerXml = showXML $
-  Elt "p" [Att "color" "red", Att "font" "Times", Att "size" "10"] [
-    Txt "Here is some",
-    Elt "em" [] [Txt "emphasized"],
-    Txt "text.",
-    Txt "Here is a",
-    Elt "a" [Att "href" "http://www.egg.com/"] [Txt "link"],
-    Txt "elsewhere."
-  ]
+chitil :: Size -> Examples
+chitil n = Examples [Example doc n Nothing]
+           "chitil       -- A doc from Chitil, designed to foil Wadler's printer by taking time O(nw)"
+  where
+    doc :: GenericDoc d => d
+    doc = foldr1 (\x y -> x <> line <> y) $ take 500 $ repeat $ chunk 200
 
-xml :: forall d. GenericDoc d => Int -> d
-xml n = showXML $ makeXML n
+    chunk :: GenericDoc d => Int -> d
+    chunk 0 = text ""
+    chunk n = group (text "*" <> line <> chunk (n - 1))
+
+wadlerXml :: Size -> Examples
+wadlerXml n = Examples [Example doc n Nothing]
+              "wadlerXml    -- A fixed-size example from Wadler's paper. n is the printing width"
+  where
+    doc :: GenericDoc d => d
+    doc = showXML $
+      Elt "p" [Att "color" "red", Att "font" "Times", Att "size" "10"] [
+        Txt "Here is some",
+        Elt "em" [] [Txt "emphasized"],
+        Txt "text.",
+        Txt "Here is a",
+        Elt "a" [Att "href" "http://www.egg.com/"] [Txt "link"],
+        Txt "elsewhere."
+      ]
+
+xml :: Size -> Examples
+xml n = Examples [Example (showXML $ makeXML n) 80 Nothing]
+        "xml          -- An xml doc of size ~2^n, printed at width 80"
   where
     makeXML :: Int -> XML
     makeXML 0 = Elt "leaf" [] []
@@ -233,82 +259,103 @@ xml n = showXML $ makeXML n
                               Att "numChildren" "2"]
                   (map makeXML (init [0..n]))
 
+allExample :: Size -> Examples
+allExample size = Examples examples
+                  "all          -- All docs of size n (gets very large after n>5)"
+  where
+    examples = [Example d (goodWidth size) Nothing | DocMaker d <- qList gDoc size]
+
+random :: Size -> IO Examples
+random size = do
+  docs <- sequence $ take 10000 $ repeat $ qRandom gDoc size
+  let examples = [Example d (goodWidth size) Nothing | DocMaker d <- docs]
+  return $ Examples examples
+           "random       -- 10,000 docs of size n chosen uniformly at random"
+
+goodWidth :: Size -> Width
+goodWidth n | n < 3  = 1
+            | n < 6  = 2
+            | n < 10 = 3
+            | True   = 5
+
+lookupExamples :: String -> Int -> IO Examples
+lookupExamples "huge"         size = return $ huge         size
+lookupExamples "exponential"  size = return $ exponential  size
+lookupExamples "incremental"  size = return $ incremental  size
+lookupExamples "nestedLists"  size = return $ nestedLists  size
+lookupExamples "antagonistic" size = return $ antagonistic size
+lookupExamples "chitil"       size = return $ chitil       size
+lookupExamples "wadlerXml"    size = return $ wadlerXml    size
+lookupExamples "xml"          size = return $ xml          size
+lookupExamples "all"          size = return $ allExample   size
+lookupExamples "random"       size = random size
+lookupExamples which          _    = error ("DOC " ++ which ++ " not recognized")
+
+allExamples = ["all", "random", "huge", "exponential", "incremental", "nestedLists",
+               "antagonistic", "chitil", "wadlerXml", "xml"]
+
 -- Testing functions
 
 data Type a = Type
 
-runPretty :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
-runPretty _ which size = case which of
-  "huge"         -> putStrLn $ pretty 10 (huge size :: d)
-  "exponential"  -> putStrLn $ pretty 80 (incremental size :: d)
-  "incremental"  -> putStrLn $ intercalate "\n" $ take 10 $ split '\n'
-                    $ pretty 80 (incremental size :: d)
-  -- TODO: fix width to (2 * size)
-  "nestedLists"  -> putStrLn $ pretty 2 (nestedLists size :: d)
-  "antagonistic" -> putStrLn $ pretty 10 (antagonistic size :: d)
-  "chitil"       -> putStrLn $ show $ length $ pretty size (chitil :: d)
-  "wadlerXml"    -> putStrLn $ pretty size (wadlerXml :: d)
-  "xml"          -> putStrLn $ pretty 80 (xml size :: d)
-  "all"          -> do
-    putStrLn $ "Running on all " ++ show (qCount gDoc size) ++
-               " docs of size " ++ show size
-    mapM_ (\d -> putStrLn $ pretty 2 $ (makeDoc d :: d)) (qList gDoc size)
-  "random"       -> do
-    putStrLn $ "Running on 10000 random docs of size " ++ show size
-    docs <- sequence $ take 10000 $ repeat $ qRandom gDoc size
-    mapM_ (\d -> putStrLn $ pretty 5 $ (makeDoc d :: d)) docs
-  _ -> error "DOC not recognized"
+runExample :: forall d. GenericDoc d => Type d -> Example -> String
+runExample _ (Example d w Nothing) = pretty w (d :: d)
+runExample _ (Example d w (Just l)) = intercalate "\n" $ take l $ split '\n' $ pretty w (d :: d)
   where
     split c [] = [[]]
     split c (x:xs) | c == x = [] : split c xs
     split c (x:xs) = let (w:ws) = split c xs in ((x:w):ws)
 
-compareToWadler :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
-compareToWadler t which size = case which of
-  "huge"         -> display $ matchesWadler t 10 (DocMaker (huge size))
-  "nestedLists"  -> display $ matchesWadler t (2 * size) (DocMaker (nestedLists size))
-  "exponential"  -> display $ matchesWadler t 80 (DocMaker (incremental size))
-  "incremental"  -> display $ matchesWadler t 80 (DocMaker (incremental size))
-  "antagonistic" -> display $ matchesWadler t 10 (DocMaker (antagonistic size))
-  "chitil"       -> display $ matchesWadler t size (DocMaker chitil)
-  "wadlerXml"    -> display $ matchesWadler t size (DocMaker wadlerXml)
-  "xml"          -> display $ matchesWadler t 80 (DocMaker (xml size))
-  "all"          -> display $ first $ catMaybes $
-                      map (\d -> matchesWadler t 2 d) (qList gDoc size)
-  "random"       -> do
-    docs <- sequence $ take 10000 $ repeat $ qRandom gDoc size
-    display $ first $ catMaybes $ map (\d -> matchesWadler t 5 d) docs
-  _              -> error "DOC not recognized"
+runPretty :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
+runPretty t which size = do
+  (Examples examples _) <- lookupExamples which size
+  sequence_ (map (putStrLn . runExample t) examples)
 
+compareToWadler :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
+compareToWadler t which size = do
+  Examples examples _ <- lookupExamples which size
+  putStrLn $ display $ first $ catMaybes $ map (matchesWadler t) examples
   where
-    display Nothing = putStrLn "pass"
-    display (Just (d, expected, actual)) = do
-      putStrLn $ "FAILED on doc " ++ showDoc d
-      putStrLn $ "EXPECTED:\n" ++ expected
-      putStrLn $ "ACTUAL:\n" ++ actual
-      putStrLn "END"
-      putStrLn ""
+    display Nothing = "pass"
+    display (Just msg) = msg
   
     first [] = Nothing
     first (x : xs) = Just x
 
-matchesWadler :: forall d. GenericDoc d => Type d -> Int -> DocMaker -> Maybe (DocMaker, String, String)
-matchesWadler _ w d =
-  if pretty w dWadler == pretty w dOther
+matchesWadler :: forall d. GenericDoc d => Type d -> Example -> Maybe String
+matchesWadler t ex@(Example d w _) =
+  let wadlerOut = runExample (Type :: Type Wadler.DOC) ex
+      otherOut  = runExample t ex in
+  if wadlerOut == otherOut
   then Nothing
-  else Just (d, pretty w dWadler, pretty w dOther)
-  where
-    dWadler :: Wadler.DOC = makeDoc d
-    dOther :: d = makeDoc d
+  else Just ("FAILED at width " ++ show w ++ " on doc " ++ showDoc (DocMaker d) ++ "\n" ++
+             "EXPECTED:\n" ++ wadlerOut ++ "\n" ++
+             "ACTUAL:\n" ++ otherOut ++ "\n" ++
+             "END\n\n")
 
 main = do
   args <- getArgs
   if length args /= 4
   then do
-    putStrLn "Usage: ./benchmark [CMD] [IMPL] [DOC] size"
-    putStrLn "where CMD is 'run' or 'test'"
-    putStrLn "and IMPL is 'Wadler', 'Chitil', 'Swierstra', or 'Pombrio'"
-    putStrLn "and DOC is 'all', 'random', 'huge', 'antagonistic', 'nestedLists', 'incremental', 'exponential', 'wadlerXml', 'xml', or 'chitil'"
+    putStrLn "Run a variety of pretty printers on a variety of example docs"
+    putStrLn "Compilation: ghc --make RunPretty"
+    putStrLn ""
+    putStrLn "Usage: ./RunPretty [CMD] [IMPL] [DOC] size"
+    putStrLn ""
+    putStrLn "CMD can be:"
+    putStrLn "  run  -- pretty print the DOC to stdout"
+    putStrLn "  test -- compare the IMPL's output on DOC to that of Wadler's. Fail if it disagrees with Wadler"
+    putStrLn ""
+    putStrLn "IMPL can be:"
+    putStrLn "  Wadler    -- A Prettier Printer, Philip Wadler, JFP, 1998"
+    putStrLn "  Chitil    -- Pretty Printing with Lazy Dequeues, Olaf Chitil, 2005"
+    putStrLn "  Swierstra -- Linear, Bounded, Functional Pretty Printing, Swierstra and Chitil, 2009"
+    putStrLn "  Pombrio   -- This work"
+    putStrLn ""
+    putStrLn "DOC can be:"
+    flip mapM_ allExamples $ \which -> do
+      Examples _ desc <- lookupExamples which 1
+      putStrLn $ "  " ++ desc
   else
     let cmd = args !! 0
         impl = args !! 1
