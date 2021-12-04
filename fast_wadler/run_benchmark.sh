@@ -6,6 +6,7 @@ antagonistic_sizes="200 400 600 800 1000 1500 2000 2500 3000"
 nested_list_sizes="200 400 600 800 1000 1500 2000"
 incremental_sizes="15 16 17 18 19 20"
 exponential_sizes="12 13 14 15 16 17"
+xml_sizes="12 13 14 15 16 17"
 
 function testit {
     local impl="$1"
@@ -134,6 +135,7 @@ timeit Pombrio antagonistic $antagonistic_sizes
 timeit Pombrio nestedLists $nested_list_sizes
 timeit Pombrio incremental $incremental_sizes
 timeit Pombrio exponential $exponential_sizes
+timeit Pombrio xml $xml_sizes
 
 echo ""
 echo "┏━━━━━━━━━━━┓"
@@ -146,3 +148,4 @@ timeit Wadler antagonistic $antagonistic_sizes
 timeit Wadler nestedLists $nested_list_sizes
 timeit Wadler incremental $incremental_sizes
 timeit Wadler exponential $exponential_sizes
+timeit Pombrio xml $xml_sizes

@@ -75,15 +75,6 @@ flatten (x, mx) = (Flatten (x, mx), flattenM mx)
 (x, mx) <> (y, my) = ((x, mx) :<> (y, my), addM mx my)
 (x, mx) <|> (y, my) = ((x, mx) :<|> (y, my), unionM mx my)
 
--- fits :: Bool -> Int -> Measure -> Int -> Int -> Bool
--- fits True p (Measure f _) s w = p + f + s <= w
--- fits False p (Measure f Nothing) s w = p + f + s <= w
--- fits False p (Measure f (Just s)) s' w = p + f + s' <= w || p + s <= w
-
-fits :: Int -> Measure -> Int -> Int -> Bool
-fits p (Measure f Nothing) s w = p + f + s <= w
-fits p (Measure f (Just s)) s' w = p + f + s' <= w || p + s <= w
-
 pretty :: Int -> MDoc -> String
 pretty w d = concat $ pp w 0 [(0, False, emptyM, fst d)]
   where
@@ -94,8 +85,7 @@ pretty w d = concat $ pp w 0 [(0, False, emptyM, fst d)]
     pp w p ((i, h, m, Nest j (x, mx)) : ys)  = pp w p ((i + j, h, m, x) : ys)
     pp w p ((i, h, m, Flatten (x, mx)) : ys) = pp w p ((i, True, flattenM m, x) : ys)
     pp w p ((i, h, m, (x, mx) :<|> (y, my)) : zs) =
-      let itFits = if h then True else fits p mx (suffixLen m) w
-      -- let itFits = fits h p mx (suffixLen m) w
+      let itFits = p + (suffixLen (addM mx m)) <= w
       in pp w p ((i, h, m, if itFits then x else y) : zs)
     pp w p ((i, h, m, (x, mx) :<> (y, my)) : zs) =
       pp w p ((i, h, addM my m, x) : (i, h, m, y) : zs)

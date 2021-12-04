@@ -16,9 +16,10 @@ class GenericDoc d where
   (<>) :: d -> d -> d
   nest :: Int -> d -> d
   group :: d -> d
+  pretty :: Int -> d -> String
+
   (<|>) :: d -> d -> d
   flatten :: d -> d
-  pretty :: Int -> d -> String
 
 instance GenericDoc Wadler.DOC where
   nil = Wadler.nil
@@ -27,9 +28,10 @@ instance GenericDoc Wadler.DOC where
   (<>) = (Wadler.<>)
   nest = Wadler.nest
   group = Wadler.group
+  pretty = Wadler.pretty
+
   (<|>) = (Wadler.:<|>)
   flatten = Wadler.flatten
-  pretty = Wadler.pretty
 
 instance GenericDoc Chitil.Doc where
   nil = Chitil.Doc id
@@ -38,9 +40,10 @@ instance GenericDoc Chitil.Doc where
   (<>) = (Chitil.<>)
   nest = Chitil.nestMargin
   group = Chitil.group
+  pretty = Chitil.pretty
+
   (<|>) = undefined
   flatten = undefined
-  pretty = Chitil.pretty
 
 instance GenericDoc Pombrio.MDoc where
   nil = Pombrio.nil
@@ -49,9 +52,10 @@ instance GenericDoc Pombrio.MDoc where
   (<>) = (Pombrio.<>)
   nest = Pombrio.nest
   group = Pombrio.group
+  pretty = Pombrio.pretty
+
   (<|>) = (Pombrio.<|>)
   flatten = Pombrio.flatten
-  pretty = Pombrio.pretty
 
 instance GenericDoc Swierstra.Cont where
   nil = Swierstra.nil
@@ -60,9 +64,10 @@ instance GenericDoc Swierstra.Cont where
   (<>) = (Swierstra.<>)
   nest = Swierstra.nest
   group = Swierstra.group
+  pretty = Swierstra.pretty
+
   (<|>) = undefined
   flatten = undefined
-  pretty = Swierstra.pretty
 
 data ShowDoc = ShowDoc String
 unwrapShowDoc :: ShowDoc -> String
@@ -81,7 +86,7 @@ instance GenericDoc ShowDoc where
   pretty = undefined
 
 showDoc :: DocMaker -> String
-showDoc d = if length printed > 200
+showDoc d = if length printed > 1000
             then "[large doc omitted]"
             else printed
   where
@@ -89,7 +94,7 @@ showDoc d = if length printed > 200
 
 -- Generate all docs of the given size
 gDoc :: Gen DocMaker
-gDoc = gDelay $ gNil <||> gText <||> gLine <||> gConcat <||> gNest <||> gChoice <||> gFlatten
+gDoc = gDelay $ gNil <||> gText <||> gLine <||> gConcat <||> gNest <||> gGroup <||> gFill
   where
     gNil = gVal (DocMaker nil)
     gText = gVal (DocMaker (text "a")) <||>
@@ -100,10 +105,10 @@ gDoc = gDelay $ gNil <||> gText <||> gLine <||> gConcat <||> gNest <||> gChoice 
                              (gPair gDoc gDoc)
     gNest = gSize 1 $ gMap (\(i, x) -> DocMaker (nest i (makeDoc x)))
                            (gPair (gMap (\n -> n + 1) gNat) gDoc)
-    -- gGroup = gSize 1 $ gMap (\x -> DocMaker (group (makeDoc x))) gDoc
-    gChoice = gSize 1 $ gMap (\(x, y) -> DocMaker (makeDoc x <|> makeDoc y))
-                             (gPair gDoc gDoc)
-    gFlatten = gSize 1 $ gMap (\x -> DocMaker (flatten (makeDoc x))) gDoc
+
+    gGroup = gSize 1 $ gMap (\x -> DocMaker (group (makeDoc x))) gDoc
+    gFill = gSize 4 $ gMap (\(x, (y, z)) -> DocMaker (fill [makeDoc x, makeDoc y, makeDoc z]))
+                           (gPair gDoc (gPair gDoc gDoc))
 
 -- A counter example that proves that the condition required for using :<|> given in Wadler's paper is
 -- incorrect. Though the correct condition is _also_ obeyed by the constructs in the paper that use
@@ -171,7 +176,9 @@ bracket :: GenericDoc d => String -> d -> String -> d
 bracket l x r = group (text l <> nest 2 (line <> x) <> line <> text r)
 
 (<+/>) :: GenericDoc d => d -> d -> d
-x <+/> y = x <> (text " " <|> line) <> y
+-- The paper said this, but some printers only support `group` and not `<|>`
+-- x <+/> y = x <> (text " " <|> line) <> y
+x <+/> y = x <> group line <> y
 
 -- Various DOCs that print slowly, some more devious than others.
 
@@ -309,7 +316,7 @@ runExample _ (Example d w (Just l)) = intercalate "\n" $ take l $ split '\n' $ p
 runPretty :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
 runPretty t which size = do
   (Examples examples _) <- lookupExamples which size
-  sequence_ (map (putStrLn . runExample t) examples)
+  sequence_ (map (putStrLn . show . length . runExample t) examples)
 
 compareToWadler :: forall d. GenericDoc d => Type d -> String -> Int -> IO ()
 compareToWadler t which size = do
