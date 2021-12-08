@@ -16,7 +16,7 @@ class Doc d where
   text :: String -> d
   line :: d
   group :: d -> d
-  (<>) :: d -> d -> d
+  (<+>) :: d -> d -> d
   nest :: Indent -> d -> d
   pretty :: Width -> d -> Layout
   nil :: d
@@ -44,7 +44,7 @@ instance Doc Cont where
                 where
                 outLine True c r = ' ' :                      c (r - 1)
                 outLine False c r = '\n' : replicate i ' ' ++ c (w - i)
-  (dl <> dr) iw = dl iw . dr iw
+  (dl <+> dr) iw = dl iw . dr iw
   group d iw = \c p dq -> d iw (leave c) p (dq `DQ.pushBack` (p, \h c -> c))
   nest j d (i, w) = d (i + j, w)
   pretty w d = d (0, w) (\p dq r -> "") 0 DQ.empty w

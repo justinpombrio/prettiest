@@ -11,7 +11,7 @@ function testit {
     ./RunPretty test "$impl" "$testcase" "$size"
 }
 
-ghc --make RunPretty.hs || exit 1
+ghc --make RunPretty.hs -O2 || exit 1
 
 echo ""
 echo "┏━━━━━━━━━┓"
@@ -37,6 +37,14 @@ echo ""
 # testit Chitil random 100
 
 echo ""
+testit Pombrio all 0
+testit Pombrio all 1
+testit Pombrio all 2
+testit Pombrio all 3
+testit Pombrio all 4
+testit Pombrio all 5
+
+echo ""
 testit Pombrio chitil 5
 testit Pombrio huge 5
 testit Pombrio antagonistic 5
@@ -44,12 +52,6 @@ testit Pombrio nestedLists 5
 testit Pombrio incremental 3
 
 echo ""
-testit Pombrio all 0
-testit Pombrio all 1
-testit Pombrio all 2
-testit Pombrio all 3
-testit Pombrio all 4
-testit Pombrio all 5
 testit Pombrio random 10
 testit Pombrio random 20
 testit Pombrio random 50

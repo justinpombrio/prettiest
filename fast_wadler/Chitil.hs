@@ -1,4 +1,4 @@
-module Chitil (Doc(Doc), pretty, text, line, (<>), group, nestMargin, nestCol) where
+module Chitil (Doc(Doc), pretty, text, line, (<+>), group, nestMargin, nestCol) where
 
 import Prelude hiding (head,last,init,tail,reverse)
 import qualified Data.List as List
@@ -11,8 +11,8 @@ text s = Doc (Text s)
 line :: Doc
 line = Doc (Line)
 
-(<>) :: Doc -> Doc -> Doc
-Doc l1 <> Doc l2 = Doc (l1 . l2)
+(<+>) :: Doc -> Doc -> Doc
+Doc l1 <+> Doc l2 = Doc (l1 . l2)
 
 group :: Doc -> Doc
 group (Doc l) = Doc (Open . l . Close)

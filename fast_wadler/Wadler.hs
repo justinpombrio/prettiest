@@ -1,4 +1,4 @@
-module Wadler (DOC((:<|>)), flatten, nil, (<>), nest, text, line, group, pretty) where
+module Wadler (DOC((:<|>)), flatten, nil, (<+>), nest, text, line, group, pretty) where
 
 -- This code is copy-pasted from the paper, with some type annotations added for clarity.
 -- (A Prettier Printer, Philip Wadler)
@@ -6,11 +6,11 @@ module Wadler (DOC((:<|>)), flatten, nil, (<>), nest, text, line, group, pretty)
 import Data.Char (chr)
 
 infixr 5 :<|>
-infixr 6 :<>
-infixr 6 <>
+infixr 6 :<+>
+infixr 6 <+>
 
 data DOC = NIL
-  | DOC :<> DOC
+  | DOC :<+> DOC
   | NEST Int DOC
   | TEXT String
   | LINE
@@ -22,7 +22,7 @@ data Doc = Nil
   | Int `Line` Doc
 
 nil = NIL
-x <> y = x :<> y
+x <+> y = x :<+> y
 nest i x = NEST i x
 text s = TEXT s
 line = LINE
@@ -32,7 +32,7 @@ group x = flatten x :<|> x
 -- Though remember: laziness.
 flatten :: DOC -> DOC
 flatten NIL = NIL
-flatten (x :<> y) = flatten x :<> flatten y
+flatten (x :<+> y) = flatten x :<+> flatten y
 flatten (NEST i x) = NEST i (flatten x)
 flatten (TEXT s) = TEXT s
 flatten LINE = TEXT " "
@@ -52,7 +52,7 @@ best w k x = be w k [(0,x)]
 be :: Int -> Int -> [(Int, DOC)] -> Doc
 be w k [] = Nil
 be w k ((i,NIL):z) = be w k z
-be w k ((i,x :<> y):z) = be w k ((i,x):(i,y):z)
+be w k ((i,x :<+> y):z) = be w k ((i,x):(i,y):z)
 be w k ((i,NEST j x):z) = be w k ((i+j,x):z)
 be w k ((i,TEXT s):z) = s `Text` be w (k+length s) z
 be w k ((i,LINE):z) = i `Line` be w i z
