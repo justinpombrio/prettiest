@@ -1,7 +1,7 @@
 **/*.hi
 **/*.o
 
-refn_impl/pretty
+oracle_impl/pretty
 fast_wadler/prettier
 fast_wadler/lazy_dequeue
 fast_wadler/linear_time
