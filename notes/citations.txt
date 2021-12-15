@@ -1,0 +1,125 @@
+TODO:
+  Competitors to test against:
+    - Lazy vs. yield (need to copy code scattered in appendices)
+    - Stable, flexible, peephole (ask for source code?)
+    - Chitil, lazy dequeues (code given in appendix!)
+    - Swierstra, linear, bounded, functional (need to copy code scattered in paper)
+
+SWIERSTRA AND CHITIL BRANCH
+
+  Linear, bounded, functional pretty-printing
+    Swierstra & Chitil, 2009.
+    Commonly cited.
+    -- https://www.cs.kent.ac.uk/pubs/2009/2847/content.pdf
+    Two implementations of Wadler/Oppen (which?):
+      One "uses lazy evaluation to simulate two co-operating processes".
+      The other "uses higher-order functions for delimited continuations
+        to simulate co-routines with explicit scheduling"
+    Critiques "Pretty printing with lazy dequeues" for being more complicated than necessary.
+    > The fundamental idea, due to Oppen (1980), is to have two processes traverse
+    > the document: a scanning process determines for all groups whether they fit and
+    > a printing process uses that information to produce the pretty layout. Pruning
+    > ensures that the scanning process never goes far ahead of the printing process.
+    Builds on "Linear, online, functional pretty printing" (Swierstra, 2004)
+    and "Pretty printing with delimited continutations" (Chitil, 2006).
+  
+  Pretty printing with lazy dequeues.
+    Chitil, 2005.
+    -- https://dl.acm.org/doi/pdf/10.1145/1053468.1053473
+    Needlessly complicated, linear time Wadlerian printing.
+  
+  Pretty printing with delimited continuations
+    Chitil, 2006.
+    -- https://www.cs.kent.ac.uk/pubs/2006/2381/content.pdf
+    Implements Oppen.
+    Uses normalization, so that a group is never followed by a `text` before a `line`.
+    Uses delimited continuations, expressed as functions.
+  
+  Linear, online, functional pretty printing (corrected and extended version)
+    Swierstra, 2004.
+    -- https://dspace.library.uu.nl/bitstream/handle/1874/18018/10.1.1.81.815[1].pdf
+
+COMPETITORS
+
+  Lazy vs. yield: incremental, linear pretty-printing
+    Kiselyov, Peyton-Jones, Sabry, 2012.
+    -- https://okmij.org/ftp/continuations/PPYield/yield-pp.pdf
+    "Like earlier solutions, it is linear, backtracking-free and with bounded latency. It is also
+    simpler to write and reason about, and is compatible with effects including IO, letting us read
+    the source document from a file, and format it as we read."
+    This might be our biggest competitor?
+    TODO: Needs more thorough read.
+
+  Stable, flexible, peephole pretty-printing
+    Jackson et al., 2007.
+    -- https://core.ac.uk/download/pdf/82283999.pdf
+  
+WADLER BRANCH
+
+  Strictly pretty
+    Lindig, 2000
+    -- https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.34.2200&rep=rep1&type=pdf
+    Points out that Wadler is exponential in a strict language.
+    Says how to fix it:
+      1. Implement `fits` directly on docs.
+      2. Pass a mode (Flat|Break) to pp.
+    Uses a nice syntax for indentation we could steal: i^< ... >
+    That's it! Nice simple paper.
+
+BERNARDY BRANCH
+
+  A pretty but not greedy printer
+    Bernardy! 2017.
+    -- https://dl.acm.org/doi/pdf/10.1145/3110250
+    Implementation:
+    - https://github.com/jyp/prettiest
+
+  Polynomial-time optimal pretty-printing combinators with choice
+    Podkopaev, Boulytchev, 2015.
+    -- https://oops.math.spbu.ru/papers/printer-combinators.pdf
+    Another algorithm for Bernardy's interface.
+    Implementation:
+    - https://github.com/anlun/polynomialPPCombinators
+    
+  A New Approach to Optimal Code Formatting
+    Phillip Yelland, 2016
+    -- https://research.google/pubs/pub44667/
+    Another algorithm for Bernardy's interface. Better time complexity w.r.t. document _tree_ size.
+    Implementation: 
+    - https://github.com/MechanicalRabbit/PrettyPrinting.jl for Julia code formatter (https://live.juliacon.org/talk/HWSUQN)
+    - https://github.com/google/rfmt for R code formatter
+
+BIG PICTURE
+
+  A pretty good formatting pipeline
+    Helene, 2013.
+    Library of pluggable components for making a reformatter.
+    Uses Wadler's printer, more or less.
+
+  FliPpr
+    Matsuda, 2018.
+    -- https://mengwangoxf.github.io/Papers/NGC18.pdf
+    Parser/printer combo.
+    Uses Wadler's printer.
+
+  Correcty-by-construction pretty-printing
+    Danielsson, 2013.
+    -- https://dl.acm.org/doi/pdf/10.1145/2502409.2502410<Paste>
+    Parser/printer combo, proven to be inverses with dependent types.
+    Uses Wadler's printer.
+
+  Declarative specification of indentation rules:
+  a tooling perspective on parsing and pretty-printing layout-sensitive languages
+    Amorim, Steindorfer, Erdweg, Visser, 2018.
+    -- https://www.pl.informatik.uni-mainz.de/files/2019/04/declarative-indentation-rules.pdf
+    This does not cite Bernardy! This should cite Bernardy!
+    No timing info for pretty printing.
+    Their pretty printer is incorrect, in that it sometimes prints a program in a way that does not
+    parse correctly. This is because their "layout fixer" sometimes steps on its own toes.
+  
+MISCELLANY
+  
+  Infinite Pretty-printing in eXene
+    Stoughton, 2001.
+    -- http://www.alleystoughton.us/research/pretty.pdf
+    Seems to have unusual goals. Elision and printing infinite structures.
