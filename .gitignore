@@ -2,6 +2,10 @@
 **/*.o
 
 oracle_impl/pretty
+
+refn_impl/pretty
+refn_impl/pretty2
+
 fast_wadler/prettier
 fast_wadler/lazy_dequeue
 fast_wadler/linear_time
