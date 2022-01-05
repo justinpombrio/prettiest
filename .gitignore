@@ -1,6 +1,9 @@
 **/*.hi
 **/*.o
 
+**/*.cmi
+**/*.cmx
+
 oracle_impl/pretty
 
 refn_impl/pretty
