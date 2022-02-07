@@ -295,7 +295,7 @@ nonOptimal w = Examples [Example nopt w Nothing]
              "nonOptimal   -- Demonstrate that Wadler does not minimize height"
   where
     nopt :: GenericDoc d => d
-    nopt = group (text "AA" <> group line <> text "A") <>
+    nopt = group (text "AAA" <> group line <> text "") <>
            nest 4 (group (text "B" <> line <> text "B" <> line <> text "B"))
 
 allExample :: Size -> Examples
