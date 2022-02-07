@@ -290,6 +290,14 @@ wordflow n = Examples [Example (doc n) 80 Nothing]
     doc n = fillwords $ intercalate " " $ take n $ cycle ipsum
     ipsum = words "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 
+nonOptimal :: Size -> Examples
+nonOptimal w = Examples [Example nopt w Nothing]
+             "nonOptimal   -- Demonstrate that Wadler does not minimize height"
+  where
+    nopt :: GenericDoc d => d
+    nopt = group (text "AA" <> group line <> text "A") <>
+           nest 4 (group (text "B" <> line <> text "B" <> line <> text "B"))
+
 allExample :: Size -> Examples
 allExample size = Examples examples
                   "all          -- All docs of size n (gets very large after n>5)"
@@ -320,11 +328,12 @@ lookupExamples "wadlerXml"    size = return $ wadlerXml    size
 lookupExamples "xml"          size = return $ xml          size
 lookupExamples "wordflow"     size = return $ wordflow     size
 lookupExamples "all"          size = return $ allExample   size
+lookupExamples "nonOptimal"   size = return $ nonOptimal   size
 lookupExamples "random"       size = random size
 lookupExamples which          _    = error ("DOC " ++ which ++ " not recognized")
 
 allExamples = ["all", "random", "huge", "exponential", "incremental", "nestedLists",
-               "antagonistic", "chitil", "wadlerXml", "xml"]
+               "antagonistic", "chitil", "wadlerXml", "xml", "nonOptimal"]
 
 -- Testing functions
 
