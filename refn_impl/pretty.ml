@@ -2,7 +2,6 @@ open Hashtbl;;
 open String;;
 open List;;
 
-type id = int
 type width = int
 type height = int
 type overflow = int
@@ -14,24 +13,25 @@ let hard_overflow_limit: width = -40
 let global_id: id ref = ref 0
 let next_id () = let id = !global_id in global_id := id + 1; id
 
-type doc = doc_case * id
+type id = int
 
+type doc = doc_case * id
 and doc_case =
   | Empty
-  | Newline
   | Text of string
-  | Flat of doc
+  | Newline
   | Nest of width * doc
   | Align of doc
-  | Choice of doc * doc
   | Concat of doc * doc
+  | Choice of doc * doc
+  | Flat of doc
 
 let empty ()     = (Empty,          next_id ())
 let line ()      = (Newline,        next_id ())
 let text s       = (Text(s),        next_id ())
 let flat d       = (Flat(d),        next_id ())
-let align d      = (Align(d),       next_id ())
 let nest i d     = (Nest(i, d),     next_id ())
+let align d      = (Align(d),       next_id ())
 let (^^) d1 d2   = (Concat(d1, d2), next_id ())
 let (^?) d1 d2   = (Choice(d1, d2), next_id ())
 let choice d1 d2 = (Choice(d1, d2), next_id ())

@@ -29,30 +29,29 @@ function timeit {
 
 ghc --make RunPretty.hs -O2 || exit 1
 
-# TODO: temporary
-# echo ""
-# echo "┏━━━━━━━━━━━┓"
-# echo "┃ Chitil.hs ┃"
-# echo "┗━━━━━━━━━━━┛"
-# 
-# timeit Chitil chitil $chitil_sizes
-# timeit Chitil huge $huge_sizes
-# timeit Chitil antagonistic $antagonistic_sizes
-# timeit Chitil nestedLists $nested_list_sizes
-# timeit Chitil incremental $incremental_sizes
-# timeit Chitil exponential $exponential_sizes
-# 
-# echo ""
-# echo "┏━━━━━━━━━━━━━━┓"
-# echo "┃ Swierstra.hs ┃"
-# echo "┗━━━━━━━━━━━━━━┛"
-# 
-# timeit Swierstra chitil $chitil_sizes
-# timeit Swierstra huge $huge_sizes
-# timeit Swierstra antagonistic $antagonistic_sizes
-# timeit Swierstra nestedLists $nested_list_sizes
-# timeit Swierstra incremental $incremental_sizes
-# timeit Swierstra exponential $exponential_sizes
+echo ""
+echo "┏━━━━━━━━━━━┓"
+echo "┃ Chitil.hs ┃"
+echo "┗━━━━━━━━━━━┛"
+
+timeit Chitil chitil $chitil_sizes
+timeit Chitil huge $huge_sizes
+timeit Chitil antagonistic $antagonistic_sizes
+timeit Chitil nestedLists $nested_list_sizes
+timeit Chitil incremental $incremental_sizes
+timeit Chitil exponential $exponential_sizes
+
+echo ""
+echo "┏━━━━━━━━━━━━━━┓"
+echo "┃ Swierstra.hs ┃"
+echo "┗━━━━━━━━━━━━━━┛"
+
+timeit Swierstra chitil $chitil_sizes
+timeit Swierstra huge $huge_sizes
+timeit Swierstra antagonistic $antagonistic_sizes
+timeit Swierstra nestedLists $nested_list_sizes
+timeit Swierstra incremental $incremental_sizes
+timeit Swierstra exponential $exponential_sizes
 
 echo ""
 echo "┏━━━━━━━━━━━━┓"

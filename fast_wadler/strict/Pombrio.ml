@@ -16,7 +16,8 @@ let add_suff f s1 s2 = match (s1, s2) with
   | (None, Some(s2)) -> Some(f + s2)
   | (Some(s1), _)    -> Some(s1)
 
-(* Combine the measure of a Doc `x` and the measure of a Doc `y` to obtain the measure of `x <> y`.  *)
+(* Combine the measure of a Doc `x` and the measure of a Doc `y` to obtain the
+ * measure of `x ^^ y`.  *)
 let add_m m1 m2 = {
   flat = m1.flat + m2.flat;
   nonflat = add_suff m1.flat m1.nonflat m2.nonflat;
@@ -48,25 +49,13 @@ let measure d = match d with
 
 let empty       = DocNil
 let text s      = DocText(s)
-let nest i x    = DocNest(i, x, measure x)
 let break       = DocBreak(" ")
 let breakWith s = DocBreak(s)
 let flatten d   = DocFlatten(d, flatten_m (measure d))
+let nest i x    = DocNest(i, x, measure x)
 let (^^) x y    = DocConcat(x, y, add_m (measure x) (measure y))
 let (^?) x y    = DocChoice(x, y, measure y)
 let group d     = flatten d ^? d
-
-type sdoc =
-  | SNil
-  | SText of string * sdoc
-  | SLine of int * sdoc
-
-let rec sdocToList = function
-  | SNil -> []
-  | SText(s, d) -> s :: sdocToList d
-  | SLine(i, d) -> "\n" :: String.make i ' ' :: sdocToList d
-
-let sdocToString d = String.concat "" (sdocToList d)
 
 (* The width until the earliest possible newline, or end of document. *)
 let suffix_len = function
@@ -80,11 +69,11 @@ let suffix_len = function
 type mode = | Flat | Ind of int
 
 let rec format w k = function
-  | []                                 -> SNil
+  | []                                 -> []
   | (i, m, DocNil)                :: z -> format w k z
-  | (i, m, DocText(s))            :: z -> SText(s, format w (k + String.length s) z)
-  | (Flat, m, DocBreak(s))        :: z -> SText(s, format w (k + String.length s) z)
-  | (Ind(i), m, DocBreak(s))      :: z -> SLine(i, format w i z)
+  | (i, m, DocText(s))            :: z -> s :: format w (k + String.length s) z
+  | (Flat, m, DocBreak(s))        :: z -> s :: format w (k + String.length s) z
+  | (Ind(i), m, DocBreak(s))      :: z -> "\n" :: String.make i ' ' :: format w i z
   | (Flat, m, DocNest(j, x, _))   :: z -> format w k ((Flat, m, x) :: z)
   | (Ind(i), m, DocNest(j, x, _)) :: z -> format w k ((Ind(i+j), m, x) :: z)
   | (i, m, DocConcat(x, y, _))    :: z ->
@@ -96,9 +85,7 @@ let rec format w k = function
     then format w k ((i, m, x) :: z)
     else format w k ((i, m, y) :: z)
 
-let pretty w doc =
-  let sdoc = format w 0 [(Ind(0), empty_m, doc)] in
-  sdocToString sdoc
+let pretty w doc = String.concat "" (format w 0 [Ind(0), measure doc, doc])
 
 (*************
  * Test Case *

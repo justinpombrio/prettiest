@@ -22,7 +22,7 @@ let group d     = flatten d ^? d
 
 type mode = | Flat | Break
 
-let rec fits (w: int) (parts: (int * mode * doc) list): bool
+let rec fits (w: int) (parts: (int * mode * doc) list)
   = match parts with
   | _ when w < 0                 -> false
   | []                           -> true
@@ -35,7 +35,7 @@ let rec fits (w: int) (parts: (int * mode * doc) list): bool
   | (i, m, DocFlatten(x))   :: z -> fits w ((i, Flat, x) :: z)
   | (i, m, DocChoice(x, y)) :: z -> fits w ((i, m, y) :: z)
 
-let rec format (w: int) (k: int) (parts: (int * mode * doc) list): string list
+let rec format (w: int) (k: int) (parts: (int * mode * doc) list)
   = match parts with
   | []                           -> []
   | (i, m, DocNil)          :: z -> format w k z
@@ -79,7 +79,7 @@ and json_seq elems = match elems with
   | (elem :: elems) -> break ^^ elem ^^ text "," ^^ json_seq elems
   | [] -> failwith "unexpected empty list in json_seq";;
 
-print_endline (pretty 20 (json_dict [
+print_endline (pretty 80 (json_dict [
   (json_string "my favorite numbers", json_list [
       json_number 12.0;
       json_number 6.18281828;
@@ -88,5 +88,5 @@ print_endline (pretty 20 (json_dict [
       json_string "socks";
       json_string "jig"])
 ]));;
-(* print_endline (pretty 80 (bigdoc 14));; *)
+print_endline (pretty 80 (bigdoc 14));;
 (* On laptop: 0.12s real time, 0.03s user time *)

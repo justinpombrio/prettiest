@@ -34,10 +34,10 @@ class Foldable q => Dequeue q where
     empty :: q a
     -- | Returns 'True' if this queue is empty.
     null :: q a -> Bool
-#if !MIN_VERSION_base(4,8,0)
-    -- | Returns the number of elements in this queue.
-    length :: q a -> Int
-#endif
+-- #if !MIN_VERSION_base(4,8,0)
+--     -- | Returns the number of elements in this queue.
+--     length :: q a -> Int
+-- #endif
     -- | Returns the item on the front of the queue.
     first :: q a -> Maybe a
     -- | Returns the item on the end of the queue.
@@ -96,17 +96,17 @@ instance Foldable BankersDequeue where
     foldl f a (BankersDequeue _ front _ rear) = foldl f a (front ++ reverse rear)
     foldr1 f (BankersDequeue _ front _ rear) = foldr1 f (front ++ reverse rear)
     foldl1 f (BankersDequeue _ front _ rear) = foldl1 f (front ++ reverse rear)
-#if MIN_VERSION_base(4,8,0)
-    length (BankersDequeue sizeF _ sizeR _) = sizeF + sizeR
-#endif
+-- #if MIN_VERSION_base(4,8,0)
+--     length (BankersDequeue sizeF _ sizeR _) = sizeF + sizeR
+-- #endif
 
 instance Dequeue BankersDequeue where
     empty = BankersDequeue 0 [] 0 []
     null (BankersDequeue 0 [] 0 []) = True
     null _ = False
-#if !MIN_VERSION_base(4,8,0)
-    length (BankersDequeue sizeF _ sizeR _) = sizeF + sizeR
-#endif
+-- #if !MIN_VERSION_base(4,8,0)
+--     length (BankersDequeue sizeF _ sizeR _) = sizeF + sizeR
+-- #endif
     first (BankersDequeue _ [] _ [x]) = Just x
     first (BankersDequeue _ front _ _) =  headMay front
     last (BankersDequeue _ [x] _ []) = Just x

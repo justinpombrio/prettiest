@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables, Rank2Types, FlexibleInstances #-}
 
 import System.Environment (getArgs)
-import Data.List (intercalate, uncons)
+import Data.List (intercalate)
 import Data.Maybe (catMaybes)
 import qualified Wadler as Wadler
 import qualified Chitil as Chitil
@@ -14,7 +14,7 @@ class GenericDoc d where
   nil :: d
   text :: String -> d
   line :: d
-  (<+>) :: d -> d -> d
+  (<>) :: d -> d -> d
   nest :: Int -> d -> d
   group :: d -> d
   pretty :: Int -> d -> String
@@ -26,7 +26,7 @@ instance GenericDoc Wadler.DOC where
   nil = Wadler.nil
   text = Wadler.text
   line = Wadler.line
-  (<+>) = (Wadler.<+>)
+  (<>) = (Wadler.<>)
   nest = Wadler.nest
   group = Wadler.group
   pretty = Wadler.pretty
@@ -38,7 +38,7 @@ instance GenericDoc Chitil.Doc where
   nil = Chitil.Doc id
   text = Chitil.text
   line = Chitil.line
-  (<+>) = (Chitil.<+>)
+  (<>) = (Chitil.<>)
   nest = Chitil.nestMargin
   group = Chitil.group
   pretty = Chitil.pretty
@@ -50,7 +50,7 @@ instance GenericDoc Pombrio.MDoc where
   nil = Pombrio.nil
   text = Pombrio.text
   line = Pombrio.line
-  (<+>) = (Pombrio.<+>)
+  (<>) = (Pombrio.<>)
   nest = Pombrio.nest
   group = Pombrio.group
   pretty = Pombrio.pretty
@@ -62,7 +62,7 @@ instance GenericDoc Swierstra.Cont where
   nil = Swierstra.nil
   text = Swierstra.text
   line = Swierstra.line
-  (<+>) = (Swierstra.<+>)
+  (<>) = (Swierstra.<>)
   nest = Swierstra.nest
   group = Swierstra.group
   pretty = Swierstra.pretty
@@ -74,7 +74,7 @@ instance GenericDoc Kiselyov.Doc where
   nil = Kiselyov.Text ""
   text = Kiselyov.Text
   line = Kiselyov.Line
-  (<+>) = (Kiselyov.:+:)
+  (<>) = (Kiselyov.:+:)
   nest = undefined
   group = Kiselyov.Group
   pretty = undefined -- TODO
@@ -91,7 +91,7 @@ instance GenericDoc ShowDoc where
   nil = ShowDoc "nil"
   text s = ShowDoc $ "\"" ++ s ++ "\""
   line = ShowDoc "NL"
-  x <+> y = ShowDoc $ "(" ++ unwrapShowDoc x ++ " <+> " ++ unwrapShowDoc y ++ ")"
+  x <> y = ShowDoc $ "(" ++ unwrapShowDoc x ++ " <> " ++ unwrapShowDoc y ++ ")"
   nest i x = ShowDoc $ "(nest " ++ show i ++ " " ++ unwrapShowDoc x ++ ")"
   group x = ShowDoc $ "(group " ++ unwrapShowDoc x ++ ")"
   x <|> y = ShowDoc $ "(" ++ unwrapShowDoc x ++ " <|> " ++ unwrapShowDoc y ++ ")"
@@ -113,7 +113,7 @@ gDoc = gDelay $ gNil <||> gText <||> gLine <||> gConcat <||> gNest <||> gGroup <
             gSize 1 (gVal (DocMaker (text "bb"))) <||>
             gSize 2 (gVal (DocMaker (text "ccc")))
     gLine = gVal (DocMaker line)
-    gConcat = gSize 1 $ gMap (\(x, y) -> DocMaker (makeDoc x <+> makeDoc y))
+    gConcat = gSize 1 $ gMap (\(x, y) -> DocMaker (makeDoc x <> makeDoc y))
                              (gPair gDoc gDoc)
     gNest = gSize 1 $ gMap (\(i, x) -> DocMaker (nest i (makeDoc x)))
                            (gPair (gMap (\n -> n + 1) gNat) gDoc)
@@ -129,12 +129,12 @@ gDoc = gDelay $ gNil <||> gText <||> gLine <||> gConcat <||> gNest <||> gGroup <
 -- uses :<|>.
 
 counterEx :: Wadler.DOC
-counterEx = line <+> group ab
-  where ab = text "a" <+> line <+> text "b"
+counterEx = line <> group ab
+  where ab = text "a" <> line <> text "b"
 
 counterEx' :: Wadler.DOC
-counterEx' = (line <+> Wadler.flatten ab) Wadler.:<|> (line <+> ab)
-  where ab = text "a" <+> line <+> text "b"
+counterEx' = (line <> Wadler.flatten ab) Wadler.:<|> (line <> ab)
+  where ab = text "a" <> line <> text "b"
 
 runCounterExamples :: IO ()
 runCounterExamples = do
@@ -155,23 +155,23 @@ folddoc f [x] = x
 folddoc f (x:xs) = f x (folddoc f xs)
 
 showXML :: GenericDoc d => XML -> d
-showXML x = folddoc (<+>) (showXMLs x)
+showXML x = folddoc (<>) (showXMLs x)
 
 showXMLs :: GenericDoc d => XML -> [d]
-showXMLs (Elt n a []) = [text "<" <+> showTag n a <+> text "/>"]
-showXMLs (Elt n a c)  = [text "<" <+> showTag n a <+> text ">" <+>
-                         showFill showXMLs c <+>
-                         text "</" <+> text n <+> text ">"]
+showXMLs (Elt n a []) = [text "<" <> showTag n a <> text "/>"]
+showXMLs (Elt n a c)  = [text "<" <> showTag n a <> text ">" <>
+                         showFill showXMLs c <>
+                         text "</" <> text n <> text ">"]
 showXMLs (Txt s) = map text (words s)
 
 showAtts :: GenericDoc d => Att -> [d]
-showAtts (Att n v) = [text n <+> text "=" <+> text (quoted v)]
+showAtts (Att n v) = [text n <> text "=" <> text (quoted v)]
 
 quoted :: String -> String
 quoted s = "\"" ++ s ++ "\""
 
 showTag :: GenericDoc d => String -> [Att] -> d
-showTag n a = text n <+> showFill showAtts a
+showTag n a = text n <> showFill showAtts a
 
 fill :: GenericDoc d => [d] -> d
 fill [] = nil
@@ -181,19 +181,19 @@ fill (x:y:zs) = (flatten x <++> fill (flatten y : zs)) <|> (x </> fill (y : zs))
 fillwords :: GenericDoc d => String -> d
 fillwords = folddoc (<+/>) . map text . words
 
-x <++> y = x <+> text " " <+> y
-x </> y = x <+> line <+> y
+x <++> y = x <> text " " <> y
+x </> y = x <> line <> y
 
 showFill f [] = nil
 showFill f xs = bracket "" (fill (concat (map f xs))) ""
 
 bracket :: GenericDoc d => String -> d -> String -> d
-bracket l x r = group (text l <+> nest 2 (line <+> x) <+> line <+> text r)
+bracket l x r = group (text l <> nest 2 (line <> x) <> line <> text r)
 
 (<+/>) :: GenericDoc d => d -> d -> d
 -- The paper said this, but some printers only support `group` and not `<|>`
--- x <+/> y = x <+> (text " " <|> line) <+> y
-x <+/> y = x <+> group line <+> y
+-- x <+/> y = x <> (text " " <|> line) <> y
+x <+/> y = x <> group line <> y
 
 -- Various DOCs that print slowly, some more devious than others.
 
@@ -214,7 +214,7 @@ huge n = Examples [Example (hugeDoc n) 10 Nothing]
          "huge         -- A doc of size 2^n that is entirely empty"
   where
     hugeDoc 0 = nil
-    hugeDoc n = let d = hugeDoc (n - 1) in d <+> d
+    hugeDoc n = let d = hugeDoc (n - 1) in d <> d
 
 incremental :: Size -> Examples
 incremental n = Examples [Example (expDoc n) 80 (Just 10)]
@@ -226,16 +226,17 @@ exponential n = Examples [Example (expDoc n) 80 Nothing]
 
 expDoc 0 = text "leaf(size = 0)"
 expDoc n = group (text ("branch(size = " ++ show (2 ^ n) ++ "):")
-                <+> nest 4 (line <+> subdoc <+> line <+> subdoc)
-                <+> line <+> text "end")
-  where subdoc = expDoc (n - 1)
+                <> nest 4 (line <> subdoc1 <> line <> subdoc2)
+                <> line <> text "end")
+  where subdoc1 = expDoc (n - 1)
+        subdoc2 = expDoc (n - 1)
 
 antagonistic :: Size -> Examples
 antagonistic n = Examples [Example (ant n) 10 Nothing]
                  "antagonistic -- A doc designed to foil Wadler's printer by taking time O(n^2)"
   where
     ant 0 = text "line"
-    ant n = group (ant (n - 1) <+> line <+> text "line")
+    ant n = group (ant (n - 1) <> line <> text "line")
 
 -- TODO: put some optional newlines in here?
 nestedLists :: Size -> Examples
@@ -243,18 +244,18 @@ nestedLists n = Examples [Example (nested n) (2 * n) Nothing]
                 "nestedLists  -- Deeply nested lists: nested depth is n, printing width is 2*n"
   where
     nested 0 = text "[]"
-    nested n = group (text "[" <+> (nested (n - 1)) <+> text "]")
+    nested n = group (text "[" <> (nested (n - 1)) <> text "]")
 
 chitil :: Size -> Examples
 chitil n = Examples [Example doc n Nothing]
            "chitil       -- A doc from Chitil, designed to foil Wadler's printer by taking time O(nw)"
   where
     doc :: GenericDoc d => d
-    doc = foldr1 (\x y -> x <+> line <+> y) $ take 500 $ repeat $ chunk 200
+    doc = foldr1 (\x y -> x <> line <> y) $ take 500 $ repeat $ chunk 200
 
     chunk :: GenericDoc d => Int -> d
     chunk 0 = text ""
-    chunk n = group (text "*" <+> line <+> chunk (n - 1))
+    chunk n = group (text "*" <> line <> chunk (n - 1))
 
 wadlerXml :: Size -> Examples
 wadlerXml n = Examples [Example doc n Nothing]

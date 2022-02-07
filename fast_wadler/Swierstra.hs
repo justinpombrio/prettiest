@@ -16,7 +16,7 @@ class Doc d where
   text :: String -> d
   line :: d
   group :: d -> d
-  (<+>) :: d -> d -> d
+  (<>) :: d -> d -> d
   nest :: Indent -> d -> d
   pretty :: Width -> d -> Layout
   nil :: d
@@ -44,7 +44,7 @@ instance Doc Cont where
                 where
                 outLine True c r = ' ' :                      c (r - 1)
                 outLine False c r = '\n' : replicate i ' ' ++ c (w - i)
-  (dl <+> dr) iw = dl iw . dr iw
+  (dl <> dr) iw = dl iw . dr iw
   group d iw = \c p dq -> d iw (leave c) p (dq `DQ.pushBack` (p, \h c -> c))
   nest j d (i, w) = d (i + j, w)
   pretty w d = d (0, w) (\p dq r -> "") 0 DQ.empty w
@@ -74,3 +74,21 @@ leave c p dq =
         Just ((s2, grp2), pp) ->
           c p (pp `DQ.pushBack`
                (s2, \h c -> grp2 h (\r -> grp1 (p <= s1 + r) c r)))
+
+-- Expanded type signature (Justin):
+
+-- scan :: Width -> (Horizontal -> (Remaining -> Layout) -> (Remaining -> Layout))
+--               -> (Position -> Dequeue (Position,
+--                                        Horizontal -> (Remaining -> Layout) 
+--                                                   -> (Remaining -> Layout))
+--                            -> (Remaining -> Layout))
+--               -> (Position -> Dequeue (Position,
+--                                        Horizontal -> (Remaining -> Layout) 
+--                                                   -> (Remaining -> Layout))
+--                            -> (Remaining -> Layout))
+-- 
+-- type Width = Int
+-- type Horizontal = Bool
+-- type Remaining = Int
+-- type Layout = String
+-- type Position = Int
