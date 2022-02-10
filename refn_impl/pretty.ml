@@ -38,21 +38,21 @@ let choice d1 d2 = (Choice(d1, d2), next_id ())
 
 type mode = Flat | Break
 
-(* Printing function. Take the strings printed so far, and an indentation, and
- * return an extended list of strings to print. The list of strings is in
- * reverse order, because we want to append "to the end". *)
-type formatter = string list -> int -> string list
-
 (* - mode (flat or not)
  * - available width for first line
  * - available width for further lines *)
 type space = Space of mode * width * width
 
+(* Printing function. Take the strings printed so far, and an indentation, and
+ * return an extended list of strings to print. The list of strings is in
+ * reverse order, because we want to append "to the end". *)
+type formatter = string list -> int -> string list
+
 (* - space remaining on the last line (good)
- * - amount of overflow (very bad)
  * - number of newlines (bad)
+ * - amount of overflow (very bad)
  * - printing function *)
-type measure = Measure of width * overflow * height * formatter
+type measure = Measure of width * height * overflow * formatter
 
 (* INVARIANT: measures are sorted in order of
  * ascending last and ascending (overflow, height) *)
@@ -65,8 +65,8 @@ let rec union_ms (ms1: measure_set) (ms2: measure_set): measure_set =
   | ([], ms2) -> ms2
   | (ms1, []) -> ms1
   | (m1 :: ms1, m2 :: ms2) ->
-      let Measure(l1, o1, h1, _) = m1
-      and Measure(l2, o2, h2, _) = m2 in
+      let Measure(l1, h1, o1, _) = m1
+      and Measure(l2, h2, o2, _) = m2 in
       (* m1 is just worse; discard it *)
       if l1 <= l2 && (o1, h1) >= (o2, h2)
       then union_ms ms1 (m2 :: ms2)
@@ -80,19 +80,19 @@ let rec union_ms (ms1: measure_set) (ms2: measure_set): measure_set =
 
 (* Given the measure of doc x and the measure of doc y,
  * determine the measure of x ^^ y. *)
-let concat_m (Measure(l1, o1, h1, p1)) (Measure(l2, o2, h2, p2)) =
-  Measure(l2, o1 + o2, h1 + h2, fun s i -> p2 (p1 s i) i)
+let concat_m (Measure(l1, h1, o1, p1)) (Measure(l2, h2, o2, p2)) =
+  Measure(l2, h1 + h2, o1 + o2, fun s i -> p2 (p1 s i) i)
 
 (* Given the measure of doc x, determine the measure of Nest(j, x). *)
-let indent_m j (Measure(l, o, h, p)) =
-  Measure(l, o, h, fun s i -> p s (i + j))
+let indent_m j (Measure(l, h, o, p)) =
+  Measure(l, h, o, fun s i -> p s (i + j))
 
 type cache = ((id * space), measure_set) Hashtbl.t
 
 let flatten_space  (Space(m, f, w)) = Space(Flat, f, w)
 let indent_space i (Space(m, f, w)) = Space(m, f, w-i)
 
-let consume_space (Space(m, f, w)) (Measure (l, o, h, _))
+let consume_space (Space(m, f, w)) (Measure (l, h, o, _))
   = Space(m, l, w)
 
 let rec measure cache space (doc, id) =
@@ -112,10 +112,10 @@ and calc_measure cache space (doc, id) =
                 fun s i -> s)]
   | Newline -> if m == Flat
                then []
-               else [Measure(w, max 0 (- w), 1,
+               else [Measure(w, 1, max 0 (- w),
                      fun s i -> String.make i ' ' :: "\n" :: s)]
   | Text(t) -> let len = String.length(t) in
-               [Measure(f - len, max 0 (len - f), 0,
+               [Measure(f - len, 0, max 0 (len - f),
                 fun s i -> t :: s)]
   | Flat(d) -> measure cache (flatten_space space) d
   | Nest(i, d) -> map (indent_m i)
