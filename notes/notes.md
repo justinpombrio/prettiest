@@ -130,3 +130,17 @@ For example, the knapsack problem:
 {(weight=2,value=1), (weight=3,value=2), (weight=4, value=1)}
 with V=3 turns into the Doc:
 ("aa" | NL + NL) + ("bbb" | NL) + ("cccc" | NL + NL)
+
+## Example that shows that Swierstra is slow
+
+    import UU_Pretty
+    import UU_Pretty_ext
+    
+    p n a = ((par >>|<< (c2e (text (show n)))) >>^<< (par >>-<< (c2e (text (show n))))) >>$<< [a]
+    
+    loop n =
+      if n == 0 then c2e (text "") else p n (loop (n - 1))
+    
+    main = do
+      render (((loop 100) >>|<< par) >>$< [text ""]) 80
+
