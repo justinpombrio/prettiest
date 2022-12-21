@@ -290,13 +290,21 @@ wordflow n = Examples [Example (doc n) 80 Nothing]
     doc n = fillwords $ intercalate " " $ take n $ cycle ipsum
     ipsum = words "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 
-nonOptimal :: Size -> Examples
-nonOptimal w = Examples [Example nopt w Nothing]
-             "nonOptimal   -- Demonstrate that Wadler does not minimize height"
+wadlerHeight :: Size -> Examples
+wadlerHeight w = Examples [Example nopt w Nothing]
+             "walderHeight -- Demonstrate that Wadler does not minimize height"
   where
     nopt :: GenericDoc d => d
-    nopt = group (text "AAA" <> group line <> text "") <>
+    nopt = group (text "AAA" <> line) <>
            nest 4 (group (text "B" <> line <> text "B" <> line <> text "B"))
+
+overflow :: Size -> Examples
+overflow w = Examples [Example doc w Nothing]
+             "overflow     -- Demonstrate that Wadler does not avoid overflow whenever possible"
+  where
+    doc :: GenericDoc d => d
+    doc = group (text "AAA" <> line) <>
+          nest 5 (group (text "B" <> line <> text "B" <> line <> text "B"))
 
 allExample :: Size -> Examples
 allExample size = Examples examples
@@ -328,12 +336,13 @@ lookupExamples "wadlerXml"    size = return $ wadlerXml    size
 lookupExamples "xml"          size = return $ xml          size
 lookupExamples "wordflow"     size = return $ wordflow     size
 lookupExamples "all"          size = return $ allExample   size
-lookupExamples "nonOptimal"   size = return $ nonOptimal   size
+lookupExamples "wadlerHeight" size = return $ wadlerHeight size
+lookupExamples "overflow"     size = return $ overflow     size
 lookupExamples "random"       size = random size
 lookupExamples which          _    = error ("DOC " ++ which ++ " not recognized")
 
 allExamples = ["all", "random", "huge", "exponential", "incremental", "nestedLists",
-               "antagonistic", "chitil", "wadlerXml", "xml", "nonOptimal"]
+               "antagonistic", "chitil", "wadlerXml", "xml", "wadlerHeight", "overflow"]
 
 -- Testing functions
 
